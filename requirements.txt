@@ -1,0 +1,11 @@
+bcrypt
+celery
+flask
+flask-sqlalchemy
+flask-wtf
+flask_admin
+flask_mongoengine
+flask_pymongo
+flask_security
+gunicorn
+pymongo

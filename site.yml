@@ -1,0 +1,11 @@
+- hosts: all
+  become: yes
+  roles:
+      - selinux
+      - ntp
+      - mongo
+      - nginx
+      - rabbitmq
+      - dashboard.user
+      - dashboard.app
+      - supervisor
