@@ -1,0 +1,17 @@
+- package:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+      - mariadb-server
+      - mariadb
+      - python3-PyMySQL
+      - python3-mysql
+  notify:
+      - mariadb_restart
+
+- service:
+    name: mariadb
+    enabled: True
+    state: started
+
+- shell: mysql -e "create database if not exists dashboard; GRANT ALL PRIVILEGES ON dashboard.* TO dashboard@localhost IDENTIFIED BY 'dashboard'"
