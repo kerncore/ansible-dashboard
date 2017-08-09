@@ -1,0 +1,13 @@
+- package:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+      - mongodb-server
+      - mongodb
+  notify:
+      - mongo_restart
+
+- service:
+    name: mongod
+    enabled: True
+    state: started

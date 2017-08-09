@@ -1,0 +1,25 @@
+- package:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+      - python
+      - python27
+      - python2-pip
+
+- pip:
+    executable: pip2
+    name: supervisor
+    state: latest
+
+- file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0777
+  with_items:
+      - /etc/ansible_dashboard
+      - /run/gunicorn
+      - /var/log/supervisord
+
+- copy:
+    src: supervisor.conf
+    dest: /etc/ansible_dashboard/supervisor.conf

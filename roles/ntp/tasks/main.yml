@@ -1,0 +1,10 @@
+- package:
+    name: ntp
+    state: latest
+  notify:
+      - ntp_restart
+
+- service:
+    name: ntpd
+    enabled: True
+    state: started

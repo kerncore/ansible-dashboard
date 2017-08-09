@@ -1,0 +1,16 @@
+- package:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+      - python3
+      - python3-pip
+
+- pip:
+    executable: /usr/bin/pip3
+    requirements: /vagrant/requirements.txt
+
+- file:
+    src: /vagrant/ansible_dashboard
+    dest: /home/dashboard/ansible_dashboard
+    state: link
+

@@ -1,0 +1,4 @@
+- name: mongo_restart
+  service:
+      name: mongod
+      state: restarted

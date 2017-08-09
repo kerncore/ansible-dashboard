@@ -1,0 +1,16 @@
+- group:
+    name: dashboard
+    state: present
+
+- user:
+    name: dashboard
+    group: dashboard
+    state: present
+    createhome: True
+
+- user:
+    name: nginx
+    groups:
+        - dashboard
+    append: True
+    createhome: False

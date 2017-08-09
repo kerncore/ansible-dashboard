@@ -1,0 +1,14 @@
+- package:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+      - rabbitmq-server
+      - librabbitmq-tools
+      - librabbitmq
+  notify:
+      rabbitmq_restart
+
+- service:
+    name: rabbitmq-server.service
+    enabled: True
+    state: started
