@@ -1,5 +1,6 @@
 bcrypt
 celery
+epdb
 flask
 Flask-Bootstrap
 Flask-LoginManager
