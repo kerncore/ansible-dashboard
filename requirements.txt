@@ -1,6 +1,7 @@
 bcrypt
 celery
 flask
+Flask-Bootstrap
 Flask-LoginManager
 flask-sqlalchemy
 flask-wtf

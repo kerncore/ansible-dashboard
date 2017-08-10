@@ -1,12 +1,100 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>HomeScreen</title>
-</head>
-<body>
+{% extends "bootstrap/base.html" %}
+{% block title %}This is an example page{% endblock %}
 
-This is the homescreen!
+{% block styles %}
+<!-- http://www.color-hex.com/color/4682b4 -->
+<style>
 
-</body>
-</html>
+
+.hg__header { grid-area: header; }
+.hg__footer { grid-area: footer; }
+.hg__main { grid-area: main; }
+.hg__left { grid-area: navigation; }
+
+
+.hg {
+    display: grid;
+    grid-template-areas: "header main main"
+                         "navigation main main"
+                         "footer main main";
+    grid-template-columns: 150px 1fr 150px;
+    grid-template-rows: 100px
+                        1fr
+                        30px;
+    min-height: 100vh;
+    background: #e0eeee;
+}
+
+
+
+.hg__header {
+    padding: 10px;
+    text-align: center;
+    background: #36648b;
+    color: white;
+}
+
+.hg__footer {
+    text-align: center;
+    background: #36648b;
+    color: white;
+}
+
+.hg__left {
+    padding: 10px;
+    background: #3f75a2;
+}
+
+.hg__main {
+    min-width: 800px;
+    padding: 10px;
+    background: #dae6f0;
+}
+
+.hg__inner {
+    padding: 10px;
+    min-width: 500px;
+    background: #ffffff;
+}
+
+.nav__clicked {
+    background: #4682b4;
+    padding: 5px;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+}
+
+.nav {
+    padding: 5px;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+}
+
+
+</style>
+{{super()}}
+{% endblock %}
+
+
+{% block content %}
+<div class="hg">
+  <header class="hg__header"><img src="http://docs.ansible.com/ansible/latest/_static/images/logo_invert.png" width="40%">DASHBOARD</header>
+  <main class="hg__main">
+      <inner class="hg__inner">
+            SEARCH WINDOW
+          adsfasdf
+
+      </inner>
+  </main>
+  <aside class="hg__left nav">
+    <a href="search" class="btn btn-primary btn-block" role="button" aria-pressed="true">SEARCH</a>
+    <a href="search" class="btn btn-primary btn-block" role="button" aria-pressed="true">USERHISTORY</a>
+    <a href="search" class="btn btn-primary btn-block" role="button" aria-pressed="true">MODULESTATS</a>
+    <a href="search" class="btn btn-primary btn-block" role="button" aria-pressed="true">COMMENTTS</a>
+    <a href="search" class="btn btn-primary btn-block" role="button" aria-pressed="true">ETC</a>
+  </aside>
+  <footer class="hg__footer"></footer>
+</div>
+{% endblock %}

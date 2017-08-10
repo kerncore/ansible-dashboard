@@ -1,6 +1,9 @@
 # Import flask and template operators
 from flask import Flask, render_template
 
+# Import bootstrap
+from flask_bootstrap import Bootstrap
+
 # Import SQLAlchemy
 from flask_sqlalchemy import SQLAlchemy
 
@@ -12,6 +15,9 @@ app = Flask(__name__)
 
 # Configurations
 app.config.from_object('config')
+
+# Bootstrap
+Bootstrap(app)
 
 # Define the database object which is imported
 # by modules and controllers
