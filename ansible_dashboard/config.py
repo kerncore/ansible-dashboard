@@ -5,6 +5,7 @@ DEBUG = True
 import os
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+# http://flask-sqlalchemy.pocoo.org/2.1/config/
 # Define the database - we are working with
 # SQLite for this example
 
