@@ -5,7 +5,7 @@ from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 
 # Import login manager
-from flask.ext.login import LoginManager
+from flask_login import LoginManager
 
 # Define the WSGI application object
 app = Flask(__name__)
@@ -22,6 +22,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.signin'
 
+from app.mod_auth.models import User
+
+@login_manager.user_loader
+def load_user(id):
+    return User.query.get(int(id))
+
 # Sample HTTP error handling
 @app.errorhandler(404)
 def not_found(error):
@@ -29,12 +35,18 @@ def not_found(error):
 
 # Import a module / component using its blueprint handler variable (mod_auth)
 from app.mod_auth.controllers import mod_auth as auth_module
+from app.mod_search.controllers import mod_search as search_module
 
 # Register blueprint(s)
 app.register_blueprint(auth_module)
-# app.register_blueprint(xyz_module)
-# ..
+app.register_blueprint(search_module)
+
 
 # Build the database:
 # This will create the database file using SQLAlchemy
 db.create_all()
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')

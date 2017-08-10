@@ -17,35 +17,12 @@ from app.mod_auth.forms import SignupForm
 from app import db
 from app.mod_auth.models import User
 
-'''
-# Does this work?
-from flask.ext.login import LoginManager
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'auth.signin'
-'''
+
 from app import login_manager
-from flask.ext.login import login_user, logout_user, current_user, login_required
+from flask_login import login_user, logout_user, current_user, login_required
 
 # Define the blueprint: 'auth', set its url prefix: app.url/auth
 mod_auth = Blueprint('auth', __name__, url_prefix='/auth')
-
-from functools import wraps
-from pprint import pprint
-
-'''
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if g.user is None:
-            return redirect(url_for('auth.signin', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-'''
-
-@login_manager.user_loader
-def load_user(id):
-    return User.query.get(int(id))
 
 
 # Set the route and accepted methods
@@ -59,18 +36,10 @@ def signin():
     if form.validate_on_submit():
 
         user = User.query.filter_by(email=form.email.data).first()
-        pprint(user)
-        pprint(form.email.data)
-        pprint(form.password.data)
-        pprint(check_password_hash(user.password, form.password.data))
-        pprint('{} != {}'.format(user.password, form.password.data))
-        pprint('{} != {}'.format(type(user.password), type(form.password.data)))
 
         if user and check_password_hash(user.password, form.password.data):
 
             session['user_id'] = user.id
-            pprint(session)
-
             flash('Welcome %s' % user.email)
 
             return redirect(url_for('auth.home'))
