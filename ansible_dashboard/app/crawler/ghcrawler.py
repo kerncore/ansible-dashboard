@@ -38,7 +38,8 @@ class GHCrawler(object):
 
     def fetch_issues(self, repo_path):
         self.update_summaries(repo_path)
-        self.update_data(repo_path)
+        self.update_issues(repo_path)
+        self.update_comments(repo_path)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
@@ -68,7 +69,21 @@ class GHCrawler(object):
 
         return states
 
-    def update_data(self, repo_path, datatypes=['issues', 'pullrequests']):
+    def update_comments(self, repo_path):
+        astates = self.get_states('issues', repo_path)
+        astates.update(self.get_states('pullrequests', repo_path))
+        import epdb; epdb.st()
+
+
+    def update_issues(self, repo_path, datatypes=['issues', 'pullrequests']):
+
+        # mongo api data
+        api_states = self.get_states('issues', repo_path)
+        api_states.update(self.get_states('pullrequests', repo_path))
+
+        graph_states = self.get_summaries(repo_path, stype='issue')
+        graph_states.update(self.get_summaries(repo_path, stype='issue'))
+        numbers = sorted(set([int(x) for x in graph_states.keys()]))
 
         for datatype in datatypes:
 
@@ -87,22 +102,35 @@ class GHCrawler(object):
             # what's missing and what has changed?
             missing = []
             changed = []
-            for number,gstate in gstates.items():
+            for number in numbers:
+                number = str(number)
+
+                # fallback to wherever the graph stored it
+                gstate = gstates.get(number, graph_states.get(number))
+                if gstate:
+                    # graphql shows merged when api shows closed
+                    if gstate['state'] == 'merged':
+                        gstate['state'] = 'closed'
+
                 astate = astates.get(number)
                 if not astate:
-                    missing.append(number)
+                      if datatype == 'pullrequests' and gstate['type'] == 'pullrequest':
+                        logging.debug('{} {} missing'.format(datatype, number))
+                        missing.append(number)
 
-                # graphql shows merged when api shows closed
-                if gstate['state'] == 'merged':
-                    gstate['state'] = 'closed'
+                # an issue with no pullrequest
+                elif not gstate and datatype == 'pullrequests':
+                    continue
 
                 # open/closed/merged
                 elif gstate['state'] != astate['state']:
                     #import epdb; epdb.st()
+                    logging.debug('{} {} state change'.format(datatype, number))
                     changed.append(number)
 
                 # graphql shows issue timestamps on PR instead of the PR timestamp
                 elif gstate['updated_at'] > astate['updated_at']:
+                    logging.debug('{} {} timestamp change'.format(datatype, number))
                     changed.append(number)
 
             # get all the things!
