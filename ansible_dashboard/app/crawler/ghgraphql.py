@@ -112,39 +112,27 @@ class GithubGraphQLClient(object):
         else:
             return psummaries[-1]['number']
 
-    def get_all_summaries(self, owner, repo):
+    def get_all_summaries(self, owner, repo, states=[]):
         """Collect all the summary data for issues and pullreuests
 
         Args:
             owner (str): the github namespace
             repo  (str): the github repository
         """
-        isummaries = self.get_summaries(owner, repo, otype='issues')
-        psummaries = self.get_summaries(owner, repo, otype='pullRequests')
-        summaries = []
-        for iis in isummaries:
-            summaries.append(iis)
-        for prs in psummaries:
-            summaries.append(prs)
 
-        numbers = [x['number'] for x in summaries]
-        missing = [x for x in range(1, numbers[-1]) if x not in numbers]
-        for x in missing:
-            data = {
-                'created_at': None,
-                'updated_at': None,
-                'id': None,
-                'number': x,
-                'state': 'closed',
-                'repository': {
-                    'nameWithOwner': '%s/%s' % (owner, repo)
-                },
-                'type': None
-            }
-            summaries.append(data)
+        isummaries = self.get_issue_summaries(owner, repo, otype='pullRequests', states=states)
+        psummaries = self.get_pullrequest_summaries(owner, repo, otype='pullRequests', states=states)
+        return(isummaries, psummaries)
 
-        summaries = sorted(summaries, key=itemgetter('number'))
-        return summaries
+    def get_issue_summaries(self, owner, repo, states=[]):
+        isummaries = self.get_summaries(owner, repo, otype='issues', states=states)
+        isummaries = sorted(isummaries, key=itemgetter('number'))
+        return isummaries
+
+    def get_pullrequest_summaries(self, owner, repo, states=[]):
+        psummaries = self.get_summaries(owner, repo, otype='pullRequests', states=states)
+        psummaries = sorted(psummaries, key=itemgetter('number'))
+        return psummaries
 
     def get_summaries(self, owner, repo, otype='issues', last=None, first='first: 100', states='states: OPEN', paginate=True):
         """Collect all the summary data for issues or pullreuests
@@ -178,7 +166,10 @@ class GithubGraphQLClient(object):
             logging.debug('%s/%s %s pagecount:%s nodecount: %s' %
                           (owner,repo, otype, pagecount, len(nodes)))
 
-            issueparams = ', '.join([x for x in [states, first, last, after] if x])
+            if states:
+                issueparams = ', '.join([x for x in [states, first, last, after] if x])
+            else:
+                issueparams = ', '.join([x for x in [first, last, after] if x])
             query = templ.render(OWNER=owner, REPO=repo, OBJECT_TYPE=otype, OBJECT_PARAMS=issueparams, FIELDS=QUERY_FIELDS)
 
             payload = {
@@ -213,8 +204,10 @@ class GithubGraphQLClient(object):
             after = 'after: "%s"' % pageinfo['endCursor']
             pagecount += 1
 
-        return nodes
+        #if otype == 'pullRequests':
+        #    import epdb; epdb.st()
 
+        return nodes
 
     def get_summary(self, repo_url, otype, number):
         """Collect all the summary data for issues or pull requests ids
