@@ -37,10 +37,35 @@ class GHCrawler(object):
             linkmap[rel] = parts[0]
         return linkmap
 
-    def _geturl(self, url):
-        headers = {'Authorization': 'token {}'.format(self.tokens[0])}
-        rr = requests.get(url, headers=headers)
-        data = rr.json()
+    def _geturl(self, url, since=None, conditional=True):
+
+        if since:
+            _url = url + '?since=%s' % since
+        else:
+            _url = url
+
+        headers = {
+            'Authorization': 'token {}'.format(self.tokens[0]),
+            'User-Agent': 'Awesome Octocat-App'
+        }
+
+        # https://developer.github.com/v3/#conditional-requests
+        db_headers = self.db.headers.find_one({'url': _url}) or {}
+        if db_headers and conditional:
+            if db_headers.get('ETag'):
+                headers['If-None-Match'] = db_headers['ETag']
+            else:
+                headers['If-Modified-Since'] = db_headers['Date']
+
+        rr = requests.get(_url, headers=headers)
+        if rr.status_code == 304:
+            data = None
+        else:
+            data = rr.json()
+            # don't forget to set your tokens kids.
+            if isinstance(data, dict):
+                if data.get('message', '').lower() == 'bad credentials':
+                    import epdb; epdb.st()
 
         # don't forget to set your tokens kids.
         if isinstance(data, dict):
@@ -52,18 +77,29 @@ class GHCrawler(object):
             while 'next' in links:
                 logging.debug(links['next'])
                 nrr, ndata = self._geturl(links['next'])
-                data += ndata
+                if ndata:
+                    data += ndata
                 if 'Link' in nrr.headers:
                     links = GHCrawler.cleanlinks(nrr.headers['Link'])
                 else:
                     links = {}
 
+        new_headers = dict(rr.headers)
+        new_headers['url'] = _url
+        res = self.db.headers.replace_one(
+            {'url': _url},
+            new_headers,
+            True
+        )
+
+        #import epdb; epdb.st()
         return (rr, data)
 
     def fetch_issues(self, repo_path):
         self.update_summaries(repo_path)
         self.update_issues(repo_path)
         self.update_comments(repo_path)
+        self.update_events(repo_path)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
@@ -126,39 +162,180 @@ class GHCrawler(object):
 
         pipeline = [
             {'$match': {'repository_url': repository_url}},
-            {'$project': {'number': 1, 'comments': 1, 'comments_url': 1, 'url': 1}}
+            {'$project': {'number': 1, 'comments': 1, 'comments_url': 1, 'url': 1, 'updated_at': 1}}
         ]
 
         missing = []
         changed = []
+        removed = []
 
         cursor = self.db.issues.aggregate(pipeline)
         for x in list(cursor):
             url = x['url']
             number = str(x['number'])
+            updated_at = x['updated_at']
             comment_count = x['comments']
             astate = astates[number]
 
-            #import epdb; epdb.st()
-            if counts.get(url, 0) != comment_count:
+            # new comments
+            if counts.get(url, 0) < comment_count:
                 logging.debug('{} expecting {} but found {}'.format(number, comment_count, counts.get(url)))
                 rr,comments = self._geturl(x['comments_url'])
                 for cx in comments:
                     if cx['id'] not in known_ids:
                         missing.append(cx)
-            else:
-                # FIXME - new comments?
-                pass
+
+            # deleted comments
+            elif counts.get(url, 0) > comment_count:
+                # get the existing comment ids first
+                this_pipeline = [
+                    {'$match': {'issue_url': url}},
+                    {'$project': {'issue_url': 1, 'id':1}}
+                ]
+                cursor = self.db.comments.aggregate(this_pipeline)
+                res = list(cursor)
+                current_database_ids = [comment['id'] for comment in res]
+                rr, comments = self._geturl(x['comments_url'])
+                current_api_ids = [comment['id'] for comment in comments]
+
+                if comment_count == 0:
+                    to_delete = current_database_ids
+                else:
+                    to_delete = []
+                    for comment_id in current_database_ids:
+                        if comment_id not in current_api_ids:
+                            to_delete.append(comment_id)
+
+                if to_delete:
+                    removed += to_delete
+
+            # changed comments
+            elif counts.get(url) and comment_count:
+
+                # FIXME - how do we avoid fetching the api when unnecessary?
+
+
+                # get the list of timestamps on current comments
+                this_pipeline = [
+                    {'$match': {'issue_url': url}},
+                    {'$project': {'issue_url': 1, 'id':1, 'updated_at': 1}}
+                ]
+                cursor = self.db.comments.aggregate(this_pipeline)
+                res = list(cursor)
+                timestamps = {}
+                for comment in res:
+                    timestamps[comment['id']] = comment['updated_at']
+                latest = sorted(set(timestamps.values()))[-1]
+                #rr, comments = self._geturl(x['comments_url'], since=latest)
+                rr, comments = self._geturl(x['comments_url'])
+
+                if not comments:
+                    continue
+
+                for comment in comments:
+                    db_time = timestamps[comment['id']]
+                    this_time = comment['updated_at']
+                    if db_time != this_time:
+                        changed.append(comment)
 
         if missing:
             logging.debug('{} new comments for {}'.format(len(missing), repo_path))
             self.db.comments.insert_many(missing)
 
         if changed:
-            # FIXME
-            pass
+            logging.debug('{} comments changed for {}'.format(len(changed), repo_path))
+            for comment in changed:
+                self.db.comments.replace_one({'issue_url': url, 'id': comment['id']}, comment)
+            #import epdb; epdb.st()
 
+        if removed:
+            logging.debug('{} comments to remove for {}'.format(len(removed), repo_path))
+            res = self.db.comments.remove({'id': {'$in': removed}})
 
+        if not missing and not changed and not removed:
+            logging.debug('No comment changes for {}'.format(repo_path))
+
+    def update_events(self, repo_path):
+        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
+        astates = self.get_states('issues', repo_path)
+
+        count_pipeline = [
+            {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
+            {'$project': {'issue_url': 1}},
+            {
+                '$group': {
+                    '_id': '$issue_url',
+                    'count': { '$sum': 1}
+                }
+            }
+        ]
+        cursor = self.db.events.aggregate(count_pipeline)
+        res = list(cursor)
+        counts = {}
+        for x in res:
+            counts[x['_id']] = x['count']
+
+        id_pipeline = [
+            {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
+            {'$project': {'id': 1}},
+        ]
+        cursor = self.db.events.aggregate(id_pipeline)
+        res = list(cursor)
+        known_ids = []
+        for x in res:
+            known_ids.append(x['id'])
+
+        pipeline = [
+            {'$match': {'repository_url': repository_url}},
+            {'$project': {'number': 1, 'events_url': 1, 'url': 1, 'updated_at': 1}}
+        ]
+
+        missing = []
+        changed = []
+        removed = []
+
+        cursor = self.db.issues.aggregate(pipeline)
+        for x in list(cursor):
+            url = x['url']
+            number = str(x['number'])
+            updated_at = x['updated_at']
+            #comment_count = x['comments']
+            astate = astates[number]
+
+            #events_pipeline = [{'$match': {'issue_url': url}}]
+            #cursor = self.db.comments.aggregate(events_pipeline)
+            #res = list(cursor)
+
+            if not counts.get(url):
+                rr, events = self._geturl(x['events_url'], conditional=False)
+                if events:
+                    for ide, event in enumerate(events):
+                        events[ide]['issue_url'] = url
+                    missing += events
+
+            else:
+                this_pipeline = [
+                    {'$match': {'issue_url': url}},
+                    {'$project': {'issue_url': 1, 'id':1, 'created_at':1}}
+                ]
+                cursor = self.db.events.aggregate(this_pipeline)
+                res = list(cursor)
+                timestamps = sorted([event['created_at'] for event in res])
+                latest = timestamps[-1]
+
+                rr, events = self._geturl(x['events_url'], conditional=True)
+                if events:
+                    for ide, event in enumerate(events):
+                        if event['id'] not in known_ids:
+                            event['issue_url'] = url
+                            missing.append(event)
+
+        if missing:
+            logging.debug('{} new events for {}'.format(len(missing), repo_path))
+            self.db.events.insert_many(missing)
+
+        if not missing:
+            logging.debug('No comment changes for {}'.format(repo_path))
 
     def update_issues(self, repo_path, datatypes=['issues', 'pullrequests']):
 
@@ -210,7 +387,6 @@ class GHCrawler(object):
 
                 # open/closed/merged
                 elif gstate['state'] != astate['state']:
-                    #import epdb; epdb.st()
                     logging.debug('{} {} state change'.format(datatype, number))
                     changed.append(number)
 
@@ -233,8 +409,8 @@ class GHCrawler(object):
                     logging.debug('get {}'.format(url))
                     rr,data = self._geturl(url)
 
-                    if number in ["31", 31]:
-                        import epdb; epdb.st()
+                    if not data:
+                        continue
 
                     if data.get('message', '').lower() == 'not found':
                         continue
@@ -317,5 +493,5 @@ if __name__ == "__main__":
     tokens = os.environ.get('GITHUB_TOKEN')
     tokens = [tokens]
     ghcrawler = GHCrawler(tokens)
-    #ghcrawler.fetch_issues('jctanner/issuetests')
+    ghcrawler.fetch_issues('jctanner/issuetests')
     ghcrawler.fetch_issues('vmware/pyvmomi')
