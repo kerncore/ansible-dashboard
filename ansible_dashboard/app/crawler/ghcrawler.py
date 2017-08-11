@@ -151,7 +151,7 @@ class GHCrawler(object):
                 pass
 
         if missing:
-            #import epdb; epdb.st()
+            logging.debug('{} new comments for {}'.format(len(missing), repo_path))
             self.db.comments.insert_many(missing)
 
         if changed:
@@ -199,7 +199,8 @@ class GHCrawler(object):
 
                 astate = astates.get(number)
                 if not astate:
-                      if datatype == 'pullrequests' and gstate['type'] == 'pullrequest':
+                      if (datatype == 'pullrequests' and gstate['type'] == 'pullrequest') or \
+                          (datatype == 'issues' and gstate['type'] != 'pullrequest'):
                         logging.debug('{} {} missing'.format(datatype, number))
                         missing.append(number)
 
@@ -251,6 +252,9 @@ class GHCrawler(object):
                 logging.debug('replacing {} {}'.format(len(to_update), datatype))
                 for x in to_update:
                     collection.replace_one({'url': x['url']}, x)
+
+            if not to_insert and not to_update:
+                logging.debug('No {} data to fetch for {}'.format(datatype, repo_path))
 
     def get_summaries(self, repo_path, stype='issue'):
         collection = getattr(self.db, 'gql_{}_summaries'.format(stype))
@@ -313,4 +317,5 @@ if __name__ == "__main__":
     tokens = os.environ.get('GITHUB_TOKEN')
     tokens = [tokens]
     ghcrawler = GHCrawler(tokens)
-    ghcrawler.fetch_issues('jctanner/issuetests')
+    #ghcrawler.fetch_issues('jctanner/issuetests')
+    ghcrawler.fetch_issues('vmware/pyvmomi')
