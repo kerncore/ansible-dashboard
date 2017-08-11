@@ -25,16 +25,40 @@ class GHCrawler(object):
         self.client = MongoClient()
         self.db = getattr(self.client, self.DBNAME)
 
+    @staticmethod
+    def cleanlinks(links):
+        linkmap = {}
+        links = links.split(',')
+        for idl, link in enumerate(links):
+            parts = link.split(';')
+            parts = [x.strip() for x in parts if x.strip()]
+            parts[0] = parts[0].replace('<', '').replace('>', '')
+            rel = parts[1].split('"')[1]
+            linkmap[rel] = parts[0]
+        return linkmap
+
     def _geturl(self, url):
         headers = {'Authorization': 'token {}'.format(self.tokens[0])}
         rr = requests.get(url, headers=headers)
         data = rr.json()
 
         # don't forget to set your tokens kids.
-        if data.get('message', '').lower() == 'bad credentials':
-            import epdb; epdb.st()
+        if isinstance(data, dict):
+            if data.get('message', '').lower() == 'bad credentials':
+                import epdb; epdb.st()
 
-        return data
+        if 'Link' in rr.headers:
+            links = GHCrawler.cleanlinks(rr.headers['Link'])
+            while 'next' in links:
+                logging.debug(links['next'])
+                nrr, ndata = self._geturl(links['next'])
+                data += ndata
+                if 'Link' in nrr.headers:
+                    links = GHCrawler.cleanlinks(nrr.headers['Link'])
+                else:
+                    links = {}
+
+        return (rr, data)
 
     def fetch_issues(self, repo_path):
         self.update_summaries(repo_path)
@@ -70,9 +94,70 @@ class GHCrawler(object):
         return states
 
     def update_comments(self, repo_path):
+        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
-        astates.update(self.get_states('pullrequests', repo_path))
-        import epdb; epdb.st()
+
+        count_pipeline = [
+            {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
+            {'$project': {'issue_url': 1}},
+            {
+                '$group': {
+                    '_id': '$issue_url',
+                    'count': { '$sum': 1}
+                }
+            }
+        ]
+        cursor = self.db.comments.aggregate(count_pipeline)
+        res = list(cursor)
+        counts = {}
+        for x in res:
+            counts[x['_id']] = x['count']
+
+        id_pipeline = [
+            {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
+            {'$project': {'id': 1}},
+        ]
+        cursor = self.db.comments.aggregate(id_pipeline)
+        res = list(cursor)
+        known_ids = []
+        for x in res:
+            known_ids.append(x['id'])
+        #import epdb; epdb.st()
+
+        pipeline = [
+            {'$match': {'repository_url': repository_url}},
+            {'$project': {'number': 1, 'comments': 1, 'comments_url': 1, 'url': 1}}
+        ]
+
+        missing = []
+        changed = []
+
+        cursor = self.db.issues.aggregate(pipeline)
+        for x in list(cursor):
+            url = x['url']
+            number = str(x['number'])
+            comment_count = x['comments']
+            astate = astates[number]
+
+            #import epdb; epdb.st()
+            if counts.get(url, 0) != comment_count:
+                logging.debug('{} expecting {} but found {}'.format(number, comment_count, counts.get(url)))
+                rr,comments = self._geturl(x['comments_url'])
+                for cx in comments:
+                    if cx['id'] not in known_ids:
+                        missing.append(cx)
+            else:
+                # FIXME - new comments?
+                pass
+
+        if missing:
+            #import epdb; epdb.st()
+            self.db.comments.insert_many(missing)
+
+        if changed:
+            # FIXME
+            pass
+
 
 
     def update_issues(self, repo_path, datatypes=['issues', 'pullrequests']):
@@ -145,7 +230,7 @@ class GHCrawler(object):
                         number
                     )
                     logging.debug('get {}'.format(url))
-                    data = self._geturl(url)
+                    rr,data = self._geturl(url)
 
                     if number in ["31", 31]:
                         import epdb; epdb.st()
