@@ -3,6 +3,7 @@
   roles:
       - selinux
       - ntp
+      - mariadb
       - mongo
       - nginx
       - rabbitmq
