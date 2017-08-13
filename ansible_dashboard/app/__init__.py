@@ -41,10 +41,12 @@ def not_found(error):
 
 # Import a module / component using its blueprint handler variable (mod_auth)
 from app.mod_auth.controllers import mod_auth as auth_module
+from app.mod_repos.controllers import mod_repos as repos_module
 from app.mod_search.controllers import mod_search as search_module
 
 # Register blueprint(s)
 app.register_blueprint(auth_module)
+app.register_blueprint(repos_module)
 app.register_blueprint(search_module)
 
 
