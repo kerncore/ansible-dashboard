@@ -521,6 +521,9 @@ class GHCrawler(object):
             if not missing and not changed:
                 logging.info('{} summary collection in sync for {}'.format(stype, repo_path))
 
+    def close(self):
+        self.client.close()
+
 
 if __name__ == "__main__":
     tokens = os.environ.get('GITHUB_TOKEN')

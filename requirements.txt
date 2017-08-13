@@ -3,6 +3,7 @@ celery
 epdb
 flask
 Flask-Bootstrap
+Flask-MySQLdb
 Flask-LoginManager
 flask-sqlalchemy
 flask-wtf
