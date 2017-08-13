@@ -103,7 +103,7 @@ class GHCrawler(object):
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
-        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
+        repository_url = 'https://mod_api.github.com/repos/{}'.format(repo_path)
         if datatype == 'issues':
             pipeline = [
                 {'$match': {'repository_url': repository_url}},
@@ -130,7 +130,7 @@ class GHCrawler(object):
         return states
 
     def update_comments(self, repo_path, number=None):
-        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
+        repository_url = 'https://mod_api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
 
         count_pipeline = [
@@ -226,7 +226,7 @@ class GHCrawler(object):
             # changed comments
             elif counts.get(url) and comment_count:
 
-                # FIXME - how do we avoid fetching the api when unnecessary?
+                # FIXME - how do we avoid fetching the mod_api when unnecessary?
 
 
                 # get the list of timestamps on current comments
@@ -270,7 +270,7 @@ class GHCrawler(object):
             logging.debug('No comment changes for {}'.format(repo_path))
 
     def update_events(self, repo_path, number=None):
-        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
+        repository_url = 'https://mod_api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
 
         count_pipeline = [
@@ -361,7 +361,7 @@ class GHCrawler(object):
 
     def update_issues(self, repo_path, number=None, datatypes=['issues', 'pullrequests']):
 
-        # mongo api data
+        # mongo mod_api data
         api_states = self.get_states('issues', repo_path)
         api_states.update(self.get_states('pullrequests', repo_path))
 
@@ -380,7 +380,7 @@ class GHCrawler(object):
 
             collection = getattr(self.db, '{}'.format(datatype))
 
-            # mongo api data
+            # mongo mod_api data
             astates = self.get_states(datatype, repo_path)
 
             # mongo graphql data
@@ -395,7 +395,7 @@ class GHCrawler(object):
                 # fallback to wherever the graph stored it
                 gstate = gstates.get(snumber, graph_states.get(snumber))
                 if gstate:
-                    # graphql shows merged when api shows closed
+                    # graphql shows merged when mod_api shows closed
                     if gstate['state'] == 'merged':
                         gstate['state'] = 'closed'
                 else:
@@ -431,7 +431,7 @@ class GHCrawler(object):
             if missing or changed:
                 tofetch = sorted(set(missing + changed))
                 for number in tofetch:
-                    url = 'https://api.github.com/repos/{}/{}/{}'.format(
+                    url = 'https://mod_api.github.com/repos/{}/{}/{}'.format(
                         repo_path,
                         datapath,
                         snumber

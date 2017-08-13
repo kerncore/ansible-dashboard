@@ -61,7 +61,7 @@ QUERY_TEMPLATE_SINGLE_NODE = """
 """
 
 class GithubGraphQLClient(object):
-    baseurl = 'https://api.github.com/graphql'
+    baseurl = 'https://mod_api.github.com/graphql'
 
     def __init__(self, token):
         self.token = token
