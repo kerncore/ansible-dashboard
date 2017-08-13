@@ -95,11 +95,11 @@ class GHCrawler(object):
         #import epdb; epdb.st()
         return (rr, data)
 
-    def fetch_issues(self, repo_path):
-        self.update_summaries(repo_path)
-        self.update_issues(repo_path)
-        self.update_comments(repo_path)
-        self.update_events(repo_path)
+    def fetch_issues(self, repo_path, number=None):
+        self.update_summaries(repo_path, number=number)
+        self.update_issues(repo_path, number=number)
+        self.update_comments(repo_path, number=number)
+        self.update_events(repo_path, number=number)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
@@ -129,7 +129,7 @@ class GHCrawler(object):
 
         return states
 
-    def update_comments(self, repo_path):
+    def update_comments(self, repo_path, number=None):
         repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
 
@@ -143,6 +143,11 @@ class GHCrawler(object):
                 }
             }
         ]
+        if number:
+            regex = count_pipeline[0]['$match']['issue_url']['$regex']
+            regex += 'issues/{}$'.format(number)
+            count_pipeline[0]['$match']['issue_url']['$regex'] = regex
+            #import epdb; epdb.st()
         cursor = self.db.comments.aggregate(count_pipeline)
         res = list(cursor)
         counts = {}
@@ -153,6 +158,10 @@ class GHCrawler(object):
             {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
             {'$project': {'id': 1}},
         ]
+        if number:
+            regex = id_pipeline[0]['$match']['issue_url']['$regex']
+            regex += 'issues/{}$'.format(number)
+            id_pipeline[0]['$match']['issue_url']['$regex'] = regex
         cursor = self.db.comments.aggregate(id_pipeline)
         res = list(cursor)
         known_ids = []
@@ -164,6 +173,9 @@ class GHCrawler(object):
             {'$match': {'repository_url': repository_url}},
             {'$project': {'number': 1, 'comments': 1, 'comments_url': 1, 'url': 1, 'updated_at': 1}}
         ]
+        if number:
+            match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
+            pipeline[0]['$match']= match
 
         missing = []
         changed = []
@@ -181,6 +193,8 @@ class GHCrawler(object):
             if counts.get(url, 0) < comment_count:
                 logging.debug('{} expecting {} but found {}'.format(number, comment_count, counts.get(url)))
                 rr,comments = self._geturl(x['comments_url'])
+                #if not comments:
+                #    import epdb; epdb.st()
                 for cx in comments:
                     if cx['id'] not in known_ids:
                         missing.append(cx)
@@ -255,7 +269,7 @@ class GHCrawler(object):
         if not missing and not changed and not removed:
             logging.debug('No comment changes for {}'.format(repo_path))
 
-    def update_events(self, repo_path):
+    def update_events(self, repo_path, number=None):
         repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
 
@@ -269,6 +283,9 @@ class GHCrawler(object):
                 }
             }
         ]
+        if number:
+            match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
+            count_pipeline[0]['$match']= match
         cursor = self.db.events.aggregate(count_pipeline)
         res = list(cursor)
         counts = {}
@@ -279,6 +296,9 @@ class GHCrawler(object):
             {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
             {'$project': {'id': 1}},
         ]
+        if number:
+            match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
+            id_pipeline[0]['$match']= match
         cursor = self.db.events.aggregate(id_pipeline)
         res = list(cursor)
         known_ids = []
@@ -289,7 +309,9 @@ class GHCrawler(object):
             {'$match': {'repository_url': repository_url}},
             {'$project': {'number': 1, 'events_url': 1, 'url': 1, 'updated_at': 1}}
         ]
-
+        if number:
+            match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
+            pipeline[0]['$match']= match
         missing = []
         changed = []
         removed = []
@@ -335,9 +357,9 @@ class GHCrawler(object):
             self.db.events.insert_many(missing)
 
         if not missing:
-            logging.debug('No comment changes for {}'.format(repo_path))
+            logging.debug('No event changes for {}'.format(repo_path))
 
-    def update_issues(self, repo_path, datatypes=['issues', 'pullrequests']):
+    def update_issues(self, repo_path, number=None, datatypes=['issues', 'pullrequests']):
 
         # mongo api data
         api_states = self.get_states('issues', repo_path)
@@ -345,7 +367,10 @@ class GHCrawler(object):
 
         graph_states = self.get_summaries(repo_path, stype='issue')
         graph_states.update(self.get_summaries(repo_path, stype='issue'))
-        numbers = sorted(set([int(x) for x in graph_states.keys()]))
+        if number:
+            numbers = [number]
+        else:
+            numbers = sorted(set([int(x) for x in graph_states.keys()]))
 
         for datatype in datatypes:
 
@@ -364,22 +389,27 @@ class GHCrawler(object):
             # what's missing and what has changed?
             missing = []
             changed = []
-            for number in numbers:
-                number = str(number)
+            for xnumber in numbers:
+                snumber = str(xnumber)
 
                 # fallback to wherever the graph stored it
-                gstate = gstates.get(number, graph_states.get(number))
+                gstate = gstates.get(snumber, graph_states.get(snumber))
                 if gstate:
                     # graphql shows merged when api shows closed
                     if gstate['state'] == 'merged':
                         gstate['state'] = 'closed'
+                else:
+                    continue
 
-                astate = astates.get(number)
+                astate = astates.get(snumber)
                 if not astate:
-                      if (datatype == 'pullrequests' and gstate['type'] == 'pullrequest') or \
-                          (datatype == 'issues' and gstate['type'] != 'pullrequest'):
-                        logging.debug('{} {} missing'.format(datatype, number))
-                        missing.append(number)
+                    try:
+                        if (datatype == 'pullrequests' and gstate['type'] == 'pullrequest') or \
+                              (datatype == 'issues' and gstate['type'] != 'pullrequest'):
+                            logging.debug('{} {} missing'.format(datatype, snumber))
+                            missing.append(snumber)
+                    except:
+                        import epdb; epdb.st()
 
                 # an issue with no pullrequest
                 elif not gstate and datatype == 'pullrequests':
@@ -387,13 +417,13 @@ class GHCrawler(object):
 
                 # open/closed/merged
                 elif gstate['state'] != astate['state']:
-                    logging.debug('{} {} state change'.format(datatype, number))
-                    changed.append(number)
+                    logging.debug('{} {} state change'.format(datatype, snumber))
+                    changed.append(snumber)
 
                 # graphql shows issue timestamps on PR instead of the PR timestamp
                 elif gstate['updated_at'] > astate['updated_at']:
-                    logging.debug('{} {} timestamp change'.format(datatype, number))
-                    changed.append(number)
+                    logging.debug('{} {} timestamp change'.format(datatype, snumber))
+                    changed.append(snumber)
 
             # get all the things!
             to_insert = []
@@ -404,7 +434,7 @@ class GHCrawler(object):
                     url = 'https://api.github.com/repos/{}/{}/{}'.format(
                         repo_path,
                         datapath,
-                        number
+                        snumber
                     )
                     logging.debug('get {}'.format(url))
                     rr,data = self._geturl(url)
@@ -415,7 +445,7 @@ class GHCrawler(object):
                     if data.get('message', '').lower() == 'not found':
                         continue
 
-                    if number in missing:
+                    if snumber in missing:
                         to_insert.append(data)
                     else:
                         to_update.append(data)
@@ -432,7 +462,7 @@ class GHCrawler(object):
             if not to_insert and not to_update:
                 logging.debug('No {} data to fetch for {}'.format(datatype, repo_path))
 
-    def get_summaries(self, repo_path, stype='issue'):
+    def get_summaries(self, repo_path, number=None, stype='issue'):
         collection = getattr(self.db, 'gql_{}_summaries'.format(stype))
         pipeline = [
             {'$match': {'repository.nameWithOwner': repo_path}},
@@ -445,7 +475,7 @@ class GHCrawler(object):
 
         return issues
 
-    def update_summaries(self, repo_path):
+    def update_summaries(self, repo_path, number=None):
 
         namespace = repo_path.split('/', 1)[0]
         repo = repo_path.split('/', 1)[1]
@@ -454,27 +484,30 @@ class GHCrawler(object):
         for stype in ['issue', 'pullrequest']:
 
             collection = getattr(self.db, 'gql_{}_summaries'.format(stype))
-            method = getattr(self.gql, 'get_{}_summaries'.format(stype))
-            summaries = method(namespace, repo)
 
-            #if stype == 'pullrequest':
-            #    import epdb; epdb.st()
+            if not number:
+                method = getattr(self.gql, 'get_{}_summaries'.format(stype))
+                summaries = method(namespace, repo)
+            else:
+                method = getattr(self.gql, 'get_{}_summary'.format(stype))
+                summary = method(namespace, repo, number)
+                if summary:
+                    summaries = [summary]
+                else:
+                    summaries = []
 
             existing_issues = self.get_summaries(repo_path, stype=stype)
 
             missing = []
             changed = []
             for summary in enumerate(summaries):
-                number = str(summary[1]['number'])
+                snumber = str(summary[1]['number'])
                 data = summary[1]
 
-                if number not in existing_issues:
+                if snumber not in existing_issues:
                     missing.append(data)
-                elif data != existing_issues[number]:
+                elif data != existing_issues[snumber]:
                     changed.append(data)
-
-                #if number == "31":
-                #    import epdb; epdb.st()
 
             if missing:
                 logging.info('{} new {} in {}'.format(len(missing), stype, repo_path))
@@ -493,5 +526,11 @@ if __name__ == "__main__":
     tokens = os.environ.get('GITHUB_TOKEN')
     tokens = [tokens]
     ghcrawler = GHCrawler(tokens)
-    ghcrawler.fetch_issues('jctanner/issuetests')
-    ghcrawler.fetch_issues('vmware/pyvmomi')
+
+    #ghcrawler.fetch_issues('jctanner/issuetests')
+    #ghcrawler.fetch_issues('vmware/pyvmomi')
+
+    for i in range(1, 40):
+        ghcrawler.fetch_issues('jctanner/issuetests', number=i)
+
+    #ghcrawler.gql.get_issue_summary('jctanner', 'issuetests', 19)

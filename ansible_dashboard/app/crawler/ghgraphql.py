@@ -129,10 +129,18 @@ class GithubGraphQLClient(object):
         isummaries = sorted(isummaries, key=itemgetter('number'))
         return isummaries
 
+    def get_issue_summary(self, owner, repo, number, states=[]):
+        isummary = self.get_summary(owner + '/' + repo, 'issue', number)
+        return isummary
+
     def get_pullrequest_summaries(self, owner, repo, states=[]):
         psummaries = self.get_summaries(owner, repo, otype='pullRequests', states=states)
         psummaries = sorted(psummaries, key=itemgetter('number'))
         return psummaries
+
+    def get_pullrequest_summary(self, owner, repo, number, states=[]):
+        psummary = self.get_summary(owner +'/' + repo, 'pullRequest', number)
+        return psummary
 
     def get_summaries(self, owner, repo, otype='issues', last=None, first='first: 100', states='states: OPEN', paginate=True):
         """Collect all the summary data for issues or pullreuests
@@ -225,14 +233,21 @@ class GithubGraphQLClient(object):
         query = template.render(OWNER=owner, REPO=repo, OBJECT_TYPE=otype, OBJECT_PARAMS='number: %s' % number, FIELDS=QUERY_FIELDS)
 
         payload = {
-            'query': query.encode('ascii', 'ignore').strip(),
+            #'query': query.encode('ascii', 'ignore').strip(),
+            'query': query.strip(),
             'variables': '{}',
             'operationName': None
         }
         rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
         data = rr.json()
 
-        node = data['data']['repository'][otype]
+        #import epdb; epdb.st()
+        try:
+            node = data['data']['repository'][otype]
+        except TypeError:
+            # errors: message: Something went wrong while executing your query.
+            return None
+
         if node is None:
             return
 
