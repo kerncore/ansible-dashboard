@@ -11,5 +11,6 @@ flask_admin
 flask_mongoengine
 flask_pymongo
 flask_security
+flower
 gunicorn
 pymongo
