@@ -5,7 +5,7 @@ import os
 import requests
 import sys
 from pymongo import MongoClient
-from ghgraphql import GithubGraphQLClient
+from app.crawler.ghgraphql import GithubGraphQLClient
 
 from pprint import pprint
 
