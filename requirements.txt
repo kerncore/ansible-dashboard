@@ -10,6 +10,7 @@ flask-wtf
 flask_admin
 flask_mongoengine
 flask_pymongo
+flask_restful
 flask_security
 flower
 gunicorn
