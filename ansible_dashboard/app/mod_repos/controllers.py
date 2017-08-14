@@ -6,6 +6,7 @@ from flask import Blueprint, request, render_template, \
 from app import db
 from app.mod_repos.models import Repo
 from app.mod_repos.forms import NewRepoForm
+from app.mod_repos.forms import RepoControls
 
 
 from flask_login import login_required
@@ -38,5 +39,21 @@ def index():
 @login_required
 def repoview(repoid):
     #return '{}'.format(repoid)
+    form = RepoControls()
+
+    if request.method == 'POST':
+
+        thisrepo = Repo.query.filter(Repo.id == repoid).first()
+
+        if form.fetch.data:
+            pass
+        elif form.clean.data:
+            pass
+        elif form.delete.data:
+            db.session.delete(thisrepo)
+            db.session.commit()
+            return redirect('/repos')
+
+    #flash('view')
     repo = Repo.query.filter(Repo.id==repoid).first()
-    return render_template("repos/repoview.html", repoid=repoid, repo=repo, form=None)
+    return render_template("repos/repoview.html", repoid=repoid, repo=repo, form=form)

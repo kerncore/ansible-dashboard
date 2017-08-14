@@ -105,6 +105,17 @@
   <main class="hg__main">
       <div class="hg__inner">
 
+          {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <ul class=flashes>
+                {% for message in messages %}
+                  <li>{{ message }}</li>
+                {% endfor %}
+                </ul>
+              {% endif %}
+          {% endwith %}
+
+
           <div class="row" style="padding: 20px">
               <h2>Summary</h2>
               id: {{ repo.id }} <br>
@@ -116,9 +127,12 @@
 
           <div class="row" style="padding: 20px">
               <h2>Controls</h2>
-            <div id="controlform">
-                CONTROLS GO HERE
-            </div>
+              <form method="POST" action="">
+                {{ form.csrf_token }}
+                {{ form.fetch }}
+                {{ form.clean }}
+                {{ form.delete }}
+              </form>
           </div>
 
           <div class="row" style="padding: 20px">

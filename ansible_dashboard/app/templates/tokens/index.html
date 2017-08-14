@@ -88,7 +88,7 @@
           $.each( data, function( key, val ) {
             console.log(key);
             console.log(val);
-            items.push( "<a href='/tokens/" + val.id + "' class='list-group-item'>" + val.id + " " + val.username + "</a>" );
+            items.push( "<a href='/tokens/" + val.id + "' class='list-group-item'>" + val.username + "</a>" );
           });
           console.log(items);
           document.getElementById("tokenlist").innerHTML = "<ul class='list-group'>" + items.join( "" ) + "</ul>";
