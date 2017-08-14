@@ -36,5 +36,9 @@ class Repo(Base):
     def __str__(self):
         return self.url
 
+    def __iter__(self):
+        yield 'id', self.id
+        yield 'url', self.url
+
     def __repr__(self):
         return '<Repo {}>'.format(self.url)
