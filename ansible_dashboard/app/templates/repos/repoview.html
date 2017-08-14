@@ -105,13 +105,31 @@
   <main class="hg__main">
       <div class="hg__inner">
 
-          id: {{ repo.id }} <br>
-          url: {{ repo.url }} <br>
-          created_at: {{ repo.date_created }} <br>
-          updated_at: {{ repo.date_modified }} <br>
-          total issues+prs: {{ repo.counts['total'] }} <br>
+          <div class="row" style="padding: 20px">
+              <h2>Summary</h2>
+              id: {{ repo.id }} <br>
+              url: {{ repo.url }} <br>
+              created_at: {{ repo.date_created }} <br>
+              updated_at: {{ repo.date_modified }} <br>
+              total issues+prs: {{ repo.counts['total'] }} <br>
+          </div>
+
+          <div class="row" style="padding: 20px">
+              <h2>Controls</h2>
+            <div id="controlform">
+                CONTROLS GO HERE
+            </div>
+          </div>
+
+          <div class="row" style="padding: 20px">
+              <h2>Jobs</h2>
+            <div id="jobslist">
+                JOBS GO HERE
+            </div>
+          </div>
 
       </div>
+
   </main>
   <aside class="hg__left nav">
       {% if current_user.is_authenticated %}

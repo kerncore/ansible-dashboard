@@ -83,21 +83,18 @@
 {{ super() }}
 <script type="text/javascript">
     //$(document).ready(function(){
-    //    document.getElementById("repolist").innerHTML = "Yes, Successfully changes" ;
+    //    $.getJSON( "/api/repos", function( data ) {
+    //      var items = [];
+    //      $.each( data, function( key, val ) {
+    //        console.log(key);
+    //        console.log(val);
+    //        items.push( "<a href='/repos/" + val.id + "' class='list-group-item'>" + val.id + " " + val.url + "</a>" );
+    //      });
+    //      console.log(items);
+    //      document.getElementById("repolist").innerHTML = "<ul class='list-group'>" + items.join( "" ) + "</ul>";
+    //    });
     //});
-    $(document).ready(function(){
-        $.getJSON( "/api/repos", function( data ) {
-          var items = [];
-          $.each( data, function( key, val ) {
-            console.log(key);
-            console.log(val);
-            items.push( "<a href='/repos/" + val.id + "' class='list-group-item'>" + val.id + " " + val.url + "</a>" );
-          });
-          console.log(items);
-          document.getElementById("repolist").innerHTML = "<ul class='list-group'>" + items.join( "" ) + "</ul>";
-        });
-    });
-    console.log('foobar');
+    //console.log('foobar');
 </script>
 {% endblock %}
 
@@ -107,22 +104,19 @@
   <header class="hg__header"><img src="http://docs.ansible.com/ansible/latest/_static/images/logo_invert.png" width="40%">DASHBOARD</header>
   <main class="hg__main">
       <div class="hg__inner">
-          <!--
-          <div>
-              <ul class="list-group">
-              {% for repo in repos %}
-                  <li class="list-group-item">{{ repo.id }} {{ repo }}</li>
-              {% endfor %}
-              </ul>
-          </div>
-          -->
-          <div id="repolist">
-                DEFAULT DATA
+
+          <div class="row" style="padding: 20px">
+              <h2>Summary</h2>
+              id: {{ token.id }} <br>
+              username: {{ token.username }} <br>
+              created_at: {{ token.date_created }} <br>
+              updated_at: {{ token.date_modified }} <br>
           </div>
           <div>
-              <form action="" method="post" name="addrepo">
+              <form action="" method="post" name="deltoken">
                   {{ form.hidden_tag() }}
-                  {{ form.url(size=50) }} <input type="submit" value="add">
+                  <input type="hidden" name="tokenid" value="{{ token.id }}">
+                  <input type="submit" value="delete">
               </form>
           </div>
       </div>
