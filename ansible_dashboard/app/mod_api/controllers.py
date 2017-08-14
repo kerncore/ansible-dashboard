@@ -7,9 +7,6 @@ from flask_login import login_required
 #import app
 from app import db
 
-#api_bp = Blueprint('mod_api', __name__, url_prefix='/api')
-#mod_api = Api(api_bp)
-
 from app.mod_repos.models import Repo
 
 mod_api_bp = Blueprint('mod_api', __name__, url_prefix='/api')

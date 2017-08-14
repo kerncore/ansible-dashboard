@@ -81,7 +81,23 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
+<script type="text/javascript">
+    //$(document).ready(function(){
+    //    document.getElementById("repolist").innerHTML = "Yes, Successfully changes" ;
+    //});
+    $(document).ready(function(){
+        $.getJSON( "/api/repos", function( data ) {
+          var items = [];
+          $.each( data, function( key, val ) {
+            console.log(key);
+            console.log(val);
+            items.push( "<li>" + val.id + " " + val.url + "</li>" );
+          });
+          document.getElementById("repolist").innerHTML = "<ul class=list-group'>" + items.join( "" ) + "</ul>";
+        });
+    });
+    console.log('foobar');
+</script>
 {% endblock %}
 
 
@@ -90,18 +106,23 @@
   <header class="hg__header"><img src="http://docs.ansible.com/ansible/latest/_static/images/logo_invert.png" width="40%">DASHBOARD</header>
   <main class="hg__main">
       <div class="hg__inner">
-          <div>
-              <form action="" method="post" name="login">
-                  {{ form.hidden_tag() }}
-                  {{ form.url(size=100) }} <input type="submit" value="add">
-              </form>
-          </div>
+          <!--
           <div>
               <ul class="list-group">
               {% for repo in repos %}
                   <li class="list-group-item">{{ repo.id }} {{ repo }}</li>
               {% endfor %}
               </ul>
+          </div>
+          -->
+          <div id="repolist">
+                DEFAULT DATA
+          </div>
+          <div>
+              <form action="" method="post" name="addrepo">
+                  {{ form.hidden_tag() }}
+                  {{ form.url(size=50) }} <input type="submit" value="add">
+              </form>
           </div>
       </div>
   </main>
