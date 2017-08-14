@@ -90,19 +90,10 @@
   <header class="hg__header"><img src="http://docs.ansible.com/ansible/latest/_static/images/logo_invert.png" width="40%">DASHBOARD</header>
   <main class="hg__main">
       <div class="hg__inner">
-          <div>
-              <form action="" method="post" name="login">
-                  {{ form.hidden_tag() }}
-                  {{ form.url(size=100) }} <input type="submit" value="add">
-              </form>
-          </div>
-          <div>
-              <ul class="list-group">
-              {% for repo in repos %}
-                  <li class="list-group-item">{{ repo.id }} {{ repo }}</li>
-              {% endfor %}
-              </ul>
-          </div>
+             <div class="form-group">
+                <input class="form-control text" id="searchquery">
+                 <button type="submit" class="btn btn-primary">submit</button>
+            </div>
       </div>
   </main>
   <aside class="hg__left nav">

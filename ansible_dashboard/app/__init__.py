@@ -10,6 +10,8 @@ from flask_sqlalchemy import SQLAlchemy
 # Import login manager
 from flask_login import LoginManager
 
+from flask import send_from_directory
+
 # Define the WSGI application object
 app = Flask(__name__)
 
@@ -60,3 +62,8 @@ db.create_all()
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/static/<path:path>')
+def send_static(path):
+    return send_from_directory('static', path)
