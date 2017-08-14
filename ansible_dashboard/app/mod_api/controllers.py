@@ -13,7 +13,7 @@ mod_api_bp = Blueprint('mod_api', __name__, url_prefix='/api')
 api = Api(mod_api_bp)
 
 
-class Repos(Resource):
+class ReposResource(Resource):
     @login_required
     def get(self):
         repos = [dict(x) for x in Repo.query.all()]
@@ -23,4 +23,19 @@ class Repos(Resource):
     def post(self):
         pass
 
-api.add_resource(Repos, '/repos', '/repo/<int:id>')
+class RepoResource(Resource):
+    @login_required
+    def get(self, repoid):
+        repoid = int(repoid)
+        thisrepo = Repo.query.filter(Repo.id==repoid).first()
+        data = dict(thisrepo)
+        return data
+
+    @login_required
+    def post(self):
+        pass
+
+
+
+api.add_resource(ReposResource, '/repos')
+api.add_resource(RepoResource, '/repos/<repoid>')

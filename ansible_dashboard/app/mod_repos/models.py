@@ -39,9 +39,18 @@ class Repo(Base):
     def __iter__(self):
         yield 'id', self.id
         yield 'url', self.url
+        yield 'created', self.date_created.isoformat()
+        yield 'modified', self.date_modified.isoformat()
 
     def __repr__(self):
         return '<Repo {}>'.format(self.url)
 
-    def total_issues(self):
-        return 0
+    def counts(self):
+        data = {
+            'total': 0,
+            'issues_open': 0,
+            'issues_closed': 0,
+            'pullrequests_open': 0,
+            'pullrequests_closed': 0
+        }
+        return data
