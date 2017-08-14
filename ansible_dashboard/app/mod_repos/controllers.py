@@ -32,3 +32,11 @@ def index():
 
     repos = Repo.query.all()
     return render_template("repos/index.html", repos=repos, form=NewRepoForm())
+
+
+@mod_repos.route('/<int:repoid>', methods=['GET', 'POST'])
+@login_required
+def repoview(repoid):
+    #return '{}'.format(repoid)
+    repo = Repo.query.filter(Repo.id==repoid).first()
+    return render_template("repos/repoview.html", repoid=repoid, repo=repo, form=None)

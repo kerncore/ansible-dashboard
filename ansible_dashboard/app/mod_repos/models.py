@@ -42,3 +42,6 @@ class Repo(Base):
 
     def __repr__(self):
         return '<Repo {}>'.format(self.url)
+
+    def total_issues(self):
+        return 0
