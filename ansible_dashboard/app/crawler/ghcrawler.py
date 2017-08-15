@@ -81,7 +81,7 @@ class GHCrawler(object):
                 logging.debug(links['next'])
                 if links['next'] == _url:
                     break
-                nrr, ndata = self._geturl(links['next'])
+                nrr, ndata = self._geturl(links['next'], conditional=conditional)
                 if ndata:
                     data += ndata
                 if 'Link' in nrr.headers:
@@ -197,7 +197,7 @@ class GHCrawler(object):
             # new comments
             if counts.get(url, 0) < comment_count:
                 logging.debug('{} expecting {} but found {}'.format(number, comment_count, counts.get(url)))
-                rr,comments = self._geturl(x['comments_url'])
+                rr,comments = self._geturl(x['comments_url'], conditional=False)
                 #if not comments:
                 #    import epdb; epdb.st()
                 for cx in comments:
@@ -214,7 +214,7 @@ class GHCrawler(object):
                 cursor = self.db.comments.aggregate(this_pipeline)
                 res = list(cursor)
                 current_database_ids = [comment['id'] for comment in res]
-                rr, comments = self._geturl(x['comments_url'])
+                rr, comments = self._geturl(x['comments_url'], conditional=False)
                 current_api_ids = [comment['id'] for comment in comments]
 
                 if comment_count == 0:
@@ -412,9 +412,11 @@ class GHCrawler(object):
                         if (datatype == 'pullrequests' and gstate['type'] == 'pullrequest') or \
                               (datatype == 'issues' and gstate['type'] != 'pullrequest'):
                             logging.debug('{} {} missing'.format(datatype, snumber))
-                            missing.append(snumber)
+                            if snumber not in missing:
+                                missing.append(snumber)
                     except:
-                        import epdb; epdb.st()
+                        #import epdb; epdb.st()
+                        logging.error(e)
 
                 # an issue with no pullrequest
                 elif not gstate and datatype == 'pullrequests':
@@ -423,26 +425,31 @@ class GHCrawler(object):
                 # open/closed/merged
                 elif gstate['state'] != astate['state']:
                     logging.debug('{} {} state change'.format(datatype, snumber))
-                    changed.append(snumber)
+                    if snumber not in changed:
+                        changed.append(snumber)
 
                 # graphql shows issue timestamps on PR instead of the PR timestamp
                 elif gstate['updated_at'] > astate['updated_at']:
                     logging.debug('{} {} timestamp change'.format(datatype, snumber))
-                    changed.append(snumber)
+                    if snumber not in changed:
+                        changed.append(snumber)
 
             # get all the things!
             to_insert = []
             to_update = []
             if missing or changed:
                 tofetch = sorted(set(missing + changed))
-                for number in tofetch:
+                for fnumber in tofetch:
                     url = 'https://api.github.com/repos/{}/{}/{}'.format(
                         repo_path,
                         datapath,
-                        snumber
+                        fnumber
                     )
                     logging.debug('get {}'.format(url))
-                    rr,data = self._geturl(url)
+                    if fnumber in missing:
+                        rr,data = self._geturl(url, conditional=False)
+                    else:
+                        rr, data = self._geturl(url, conditional=True)
 
                     if not data:
                         continue
