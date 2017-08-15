@@ -55,11 +55,16 @@ def index():
 
         client.close()
 
-        if sortby:
-            if sortby[1] == 'asc':
-                results = sorted(results, key=itemgetter(sortby[0]), reverse=True)
-            else:
-                results = sorted(results, key=itemgetter(sortby[0]), reverse=False)
+        if sortby and results:
+            logging.debug('sortby: {}'.format(sortby))
+            results = [x for x in results if x and sortby[0] in x]
+            try:
+                if sortby[1] == 'asc':
+                    results = sorted(results, key=itemgetter(sortby[0]), reverse=True)
+                else:
+                    results = sorted(results, key=itemgetter(sortby[0]), reverse=False)
+            except Exception as e:
+                logging.error(e)
 
         logging.debug('{} --> {} results'.format(query, len(results)))
 

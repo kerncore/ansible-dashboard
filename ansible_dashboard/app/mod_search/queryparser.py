@@ -38,7 +38,7 @@ class QueryParser(object):
 
             elif qpart.startswith('sort:'):
                 key = value.split('-', 1)[0]
-                if key in ['created', 'updated', 'merged']:
+                if key in ['created', 'updated', 'closed', 'merged']:
                     key = key + '_at'
 
                 direction = value.split('-', 1)[1]
