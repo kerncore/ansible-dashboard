@@ -99,7 +99,7 @@
             {% if results %}
                 <ul>
                 {% for res in results %}
-                    <li>{{ res.number }}  {{ res.title }}</li>
+                    <li>{{ res.number }}  {{ res.repo_parts }} {{ res.title }}</li>
                 {% endfor  %}
                 </ul>
             {% endif %}

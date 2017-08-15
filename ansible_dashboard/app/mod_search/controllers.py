@@ -10,11 +10,13 @@ from werkzeug import check_password_hash, generate_password_hash
 from app import db
 
 import logging
+from operator import itemgetter
 from pymongo import MongoClient
 
 
 from flask_login import login_required
 from app.mod_search.forms import SearchForm
+from app.mod_search.queryparser import QueryParser
 
 
 # Define the blueprint: 'auth', set its url prefix: app.url/auth
@@ -30,26 +32,35 @@ def index():
     form = SearchForm()
 
     if request.method == 'POST':
-        query = form.query.data
-        logging.debug('query: {}'.format(query))
+
         client = MongoClient()
         db = getattr(client, DBNAME)
-        collection = db.issues
 
-        pipeline = [
-            {
-                '$project': {
-                    '_id': 0,
-                    'number': 1,
-                    'title': 1
-                }
-            }
-        ]
+        # chop out t he query
+        query = form.query.data
 
-        logging.debug('pipeline starting')
-        cursor = collection.aggregate(pipeline)
-        results = list(cursor)
-        logging.debug('pipeline finished ({} total)'.format(len(results)))
+        # build the pipelines
+        qp = QueryParser()
+        collections,pipeline,sortby = qp.parse_to_pipeline(query)
 
+        for collection_name in collections:
+            logging.debug('collection: {}'.format(collection_name))
+            logging.debug('pipeline: {}'.format(pipeline))
+            collection = getattr(db, collection_name)
+            cursor = collection.aggregate(pipeline)
+            res = list(cursor)
+            logging.debug(len(res))
+            if res:
+                results += res
+
+        client.close()
+
+        if sortby:
+            if sortby[1] == 'asc':
+                results = sorted(results, key=itemgetter(sortby[0]), reverse=True)
+            else:
+                results = sorted(results, key=itemgetter(sortby[0]), reverse=False)
+
+        logging.debug('{} --> {} results'.format(query, len(results)))
 
     return render_template("search/index.html", form=form, results=results)

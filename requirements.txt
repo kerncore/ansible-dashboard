@@ -16,3 +16,4 @@ flower
 gunicorn
 pymongo
 requests
+nose

@@ -132,6 +132,9 @@ class GHCrawler(object):
             number = str(x['number'])
             states[number] = x
 
+        #if datatype == 'pullrequests':
+        #    import epdb; epdb.st()
+
         return states
 
     def update_comments(self, repo_path, number=None):
@@ -376,6 +379,7 @@ class GHCrawler(object):
             numbers = [number]
         else:
             numbers = sorted(set([int(x) for x in graph_states.keys()]))
+            numbers = [x for x in range(numbers[0], numbers[-1])]
 
         for datatype in datatypes:
 
@@ -385,7 +389,7 @@ class GHCrawler(object):
 
             collection = getattr(self.db, '{}'.format(datatype))
 
-            # mongo mod_api data
+            # mongo api data
             astates = self.get_states(datatype, repo_path)
 
             # mongo graphql data
