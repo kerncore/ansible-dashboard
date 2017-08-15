@@ -46,7 +46,7 @@ def repoview(repoid):
         thisrepo = Repo.query.filter(Repo.id == repoid).first()
 
         if form.fetch.data:
-            pass
+            thisrepo.fetch()
         elif form.clean.data:
             pass
         elif form.delete.data:
