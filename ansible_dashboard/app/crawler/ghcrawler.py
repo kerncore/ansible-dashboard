@@ -408,6 +408,7 @@ class GHCrawler(object):
                     if gstate['state'] == 'merged':
                         gstate['state'] = 'closed'
                 else:
+                    logging.debug('skipping {} -- no gstate'.format(number))
                     continue
 
                 astate = astates.get(snumber)
@@ -456,9 +457,11 @@ class GHCrawler(object):
                         rr, data = self._geturl(url, conditional=True)
 
                     if not data:
+                        logging.debug('{} no data'.format(fnumber))
                         continue
 
                     if data.get('message', '').lower() == 'not found':
+                        logging.debug('{} not found'.format(fnumber))
                         continue
 
                     if snumber in missing:
@@ -473,10 +476,13 @@ class GHCrawler(object):
             if to_update:
                 logging.debug('replacing {} {}'.format(len(to_update), datatype))
                 for x in to_update:
-                    collection.replace_one({'url': x['url']}, x)
+                    collection.replace_one({'url': x['url']}, x, True)
 
             if not to_insert and not to_update:
                 logging.debug('No {} data to fetch for {}'.format(datatype, repo_path))
+
+            #if datatype.startswith('pull'):
+            #    import epdb; epdb.st()
 
     def get_summaries(self, repo_path, number=None, stype='issue'):
         collection = getattr(self.db, 'gql_{}_summaries'.format(stype))
@@ -532,7 +538,7 @@ class GHCrawler(object):
             if changed:
                 logging.info('{} changed {} in {}'.format(len(changed), stype, repo_path))
                 for x in changed:
-                    collection.replace_one({'url': x['url']}, x)
+                    collection.replace_one({'url': x['url']}, x, True)
 
             if not missing and not changed:
                 logging.info('{} summary collection in sync for {}'.format(stype, repo_path))
