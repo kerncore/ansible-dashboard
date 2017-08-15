@@ -9,25 +9,47 @@ from werkzeug import check_password_hash, generate_password_hash
 # Import the database object from the main app module
 from app import db
 
-'''
-# Import module models (i.e. User)
-from app import db
-from app.mod_auth.models import User
-from app import login_manager
-'''
+import logging
+from pymongo import MongoClient
+
 
 from flask_login import login_required
+from app.mod_search.forms import SearchForm
+
 
 # Define the blueprint: 'auth', set its url prefix: app.url/auth
-mod_search = Blueprint('mod_search', __name__, url_prefix='/mod_search')
+mod_search = Blueprint('mod_search', __name__, url_prefix='/search')
 
-'''
-@login_manager.user_loader
-def load_user(id):
-    return User.query.get(int(id))
-'''
+DBNAME = 'github_api'
 
 @mod_search.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
-    return render_template("mod_search/mod_search.html")
+
+    results = []
+    form = SearchForm()
+
+    if request.method == 'POST':
+        query = form.query.data
+        logging.debug('query: {}'.format(query))
+        client = MongoClient()
+        db = getattr(client, DBNAME)
+        collection = db.issues
+
+        pipeline = [
+            {
+                '$project': {
+                    '_id': 0,
+                    'number': 1,
+                    'title': 1
+                }
+            }
+        ]
+
+        logging.debug('pipeline starting')
+        cursor = collection.aggregate(pipeline)
+        results = list(cursor)
+        logging.debug('pipeline finished ({} total)'.format(len(results)))
+
+
+    return render_template("search/index.html", form=form, results=results)

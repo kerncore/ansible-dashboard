@@ -58,6 +58,9 @@ class GHCrawler(object):
                 headers['If-Modified-Since'] = db_headers['Date']
 
         rr = requests.get(_url, headers=headers)
+
+        logging.debug('{} {}'.format(_url, rr.status_code))
+
         if rr.status_code == 304:
             data = None
         else:
@@ -68,14 +71,16 @@ class GHCrawler(object):
                     import epdb; epdb.st()
 
         # don't forget to set your tokens kids.
-        if isinstance(data, dict):
-            if data.get('message', '').lower() == 'bad credentials':
-                import epdb; epdb.st()
+        #if isinstance(data, dict):
+        #    if data.get('message', '').lower() == 'bad credentials':
+        #        import epdb; epdb.st()
 
         if 'Link' in rr.headers:
             links = GHCrawler.cleanlinks(rr.headers['Link'])
             while 'next' in links:
                 logging.debug(links['next'])
+                if links['next'] == _url:
+                    break
                 nrr, ndata = self._geturl(links['next'])
                 if ndata:
                     data += ndata
@@ -103,7 +108,7 @@ class GHCrawler(object):
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
-        repository_url = 'https://mod_api.github.com/repos/{}'.format(repo_path)
+        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
         if datatype == 'issues':
             pipeline = [
                 {'$match': {'repository_url': repository_url}},
@@ -270,7 +275,7 @@ class GHCrawler(object):
             logging.debug('No comment changes for {}'.format(repo_path))
 
     def update_events(self, repo_path, number=None):
-        repository_url = 'https://mod_api.github.com/repos/{}'.format(repo_path)
+        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
 
         count_pipeline = [
@@ -431,7 +436,7 @@ class GHCrawler(object):
             if missing or changed:
                 tofetch = sorted(set(missing + changed))
                 for number in tofetch:
-                    url = 'https://mod_api.github.com/repos/{}/{}/{}'.format(
+                    url = 'https://api.github.com/repos/{}/{}/{}'.format(
                         repo_path,
                         datapath,
                         snumber

@@ -61,7 +61,7 @@ QUERY_TEMPLATE_SINGLE_NODE = """
 """
 
 class GithubGraphQLClient(object):
-    baseurl = 'https://mod_api.github.com/graphql'
+    baseurl = 'https://api.github.com/graphql'
 
     def __init__(self, token):
         self.token = token
@@ -71,6 +71,7 @@ class GithubGraphQLClient(object):
         }
         self.environment = jinja2.Environment()
 
+    '''
     def get_issue_summaries(self, repo_url, baseurl=None, cachefile=None):
         """Return a dict of all issue summaries with numbers as keys
 
@@ -89,6 +90,7 @@ class GithubGraphQLClient(object):
         for x in summaries:
             issues[str(x['number'])] = x
         return issues
+    '''
 
     def get_last_number(self, repo_path):
         """Return the very last issue/pr number opened for a repo
@@ -187,7 +189,15 @@ class GithubGraphQLClient(object):
                 'operationName': None
             }
 
+            logging.debug(self.headers)
+            logging.debug(self.baseurl)
+            logging.debug(payload)
+
             rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
+
+            logging.debug(rr.status_code)
+            logging.debug(rr.reason)
+
             if not rr.ok:
                 break
             data = rr.json()
@@ -238,7 +248,15 @@ class GithubGraphQLClient(object):
             'variables': '{}',
             'operationName': None
         }
+
+        logging.debug(self.headers)
+        logging.debug(self.baseurl)
+        logging.debug(payload)
+
         rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
+        logging.debug(rr.status_code)
+        logging.debug(rr.reason)
+
         data = rr.json()
 
         #import epdb; epdb.st()

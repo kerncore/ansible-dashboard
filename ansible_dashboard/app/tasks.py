@@ -18,6 +18,13 @@ def update_github_repo_issues(repo_path, issues=[]):
     #tokens = os.environ.get('GITHUB_TOKEN')
     #tokens = [tokens]
 
+    '''
+    parts = repo_path.split('/')
+    logging.debug(parts)
+    user = parts[0]
+    repo = parts[1]
+    '''
+
     tokens = Token.query.all()
     ctokens = [x.token for x in tokens]
     logging.info(ctokens)
