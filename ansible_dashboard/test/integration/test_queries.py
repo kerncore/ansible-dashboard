@@ -20,9 +20,14 @@ queries = [
     'repo:issuetests number:1',
 ]
 
+queries = [
+    'file:.*vmware.*'
+]
+
 qe = QueryExecutor()
 
 for qs in queries:
     print('######################')
     print('QUERY: {}'.format(qs))
     res = qe.runquery(qs)
+    #import epdb; epdb.st()

@@ -11,7 +11,8 @@ class QueryParser(object):
             'matches': [],
             'fields': [],
             'text': [],
-            'numbers': []
+            'numbers': [],
+            'files': []
         }
 
         qparts = query.split()
@@ -67,6 +68,9 @@ class QueryParser(object):
 
             elif key == 'number':
                 querydict['numbers'].append(int(value))
+
+            elif key == 'file' or key == 'component':
+                querydict['files'].append(value)
 
             else:
                 # catchall

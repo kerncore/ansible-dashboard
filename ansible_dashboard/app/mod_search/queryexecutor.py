@@ -67,6 +67,25 @@ class QueryExecutor(object):
 
                 issuemap[url] = QueryExecutor.merge_issue_pullrequest(issuemap[url], px)
 
+        # get rid of anything without matching files
+        if querydict.get('files'):
+            for filen in querydict['files']:
+                fpipe = [
+                    {'$match': {'filename': {'$regex': filen}}},
+                    {'$project': {'_id': 0, 'issue_url': 1}}
+                ]
+                cursor = db.pullrequest_files.aggregate(fpipe)
+                fmatches = list(cursor)
+                fmatch_urls = [x['issue_url'] for x in fmatches]
+
+                topop = []
+                for key in issuemap.keys():
+                    if key not in fmatch_urls:
+                        topop.append(key)
+
+                for x in topop:
+                    issuemap.pop(x, None)
+
         client.close()
 
         # filter specific numbers
@@ -147,5 +166,5 @@ class QueryExecutor(object):
                 logging.error(e)
 
         logging.debug('total: {}'.format(len(results)))
-        pprint([x['number'] for x in results])
+        #pprint([x['number'] for x in results])
         return results

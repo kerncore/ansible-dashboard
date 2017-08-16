@@ -2,8 +2,11 @@
 
 import logging
 import os
+import random
 import requests
 import sys
+import time
+
 from pymongo import MongoClient
 from app.crawler.ghgraphql import GithubGraphQLClient
 
@@ -44,8 +47,9 @@ class GHCrawler(object):
         else:
             _url = url
 
+        token = random.choice(self.tokens)
         headers = {
-            'Authorization': 'token {}'.format(self.tokens[0]),
+            'Authorization': 'token {}'.format(token),
             'User-Agent': 'Awesome Octocat-App'
         }
 
@@ -57,15 +61,34 @@ class GHCrawler(object):
             else:
                 headers['If-Modified-Since'] = db_headers['Date']
 
+        # use the same credentials for this every time
+        if db_headers.get('Authorization'):
+            headers['Authorization'] = db_headers['Authorization']
+
         success = False
         while not success:
             rr = requests.get(_url, headers=headers)
             if rr.status_code < 400:
                 success = True
                 break
+            if rr.status_code == 404:
+                # a missing issue
+                success = True
+                break
 
-            import epdb; epdb.st()
+            jdata = {}
+            try:
+                jdata = rr.json()
+            except Exception as e:
+                logging.error(e)
 
+            if 'api rate limit exceeded' in jdata.get('message', '').lower():
+                if 'X-RateLimit-Reset' in rr.headers:
+                    rt = float(rr.headers['X-RateLimit-Reset']) - time.time()
+                    rt += 5
+                    logging.warning('{}'.format(jdata.get('message')))
+                    logging.warning('sleeping {}s due to rate limiting'.format(rt))
+                    time.sleep(rt)
 
         logging.debug('{} {}'.format(_url, rr.status_code))
 
@@ -99,6 +122,7 @@ class GHCrawler(object):
 
         new_headers = dict(rr.headers)
         new_headers['url'] = _url
+        new_headers['Authorizaton'] = headers['Authorization']
         res = self.db.headers.replace_one(
             {'url': _url},
             new_headers,
@@ -109,11 +133,11 @@ class GHCrawler(object):
         return (rr, data)
 
     def fetch_issues(self, repo_path, number=None):
+        self.update_summaries(repo_path, number=number)
+        self.update_issues(repo_path, number=number)
+        self.update_comments(repo_path, number=number)
+        self.update_events(repo_path, number=number)
         self.update_files(repo_path, number=number)
-        #self.update_summaries(repo_path, number=number)
-        #self.update_issues(repo_path, number=number)
-        #self.update_comments(repo_path, number=number)
-        #self.update_events(repo_path, number=number)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
