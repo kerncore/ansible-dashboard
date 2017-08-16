@@ -53,6 +53,7 @@ class QueryParser(object):
             pipeline.append(
                 {'$match': match}
             )
+        pipeline.append({'$project': {'_id': 0}})
 
         return collections, pipeline, sortby
 

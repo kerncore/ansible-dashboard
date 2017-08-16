@@ -17,8 +17,13 @@ class QueryExecutor(object):
 
     @staticmethod
     def merge_issue_pullrequest(issue, pullrequest):
-        #import epdb; epdb.st()
-        return issue
+        rdata = issue.copy()
+        for k,v in pullrequest.items():
+            if k not in rdata:
+                rdata[k] = v
+            else:
+                rdata['pull_{}'.format(k)] = v
+        return rdata
 
     def runquery(self, query):
 
