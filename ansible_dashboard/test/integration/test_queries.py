@@ -14,7 +14,10 @@ queries = [
     'repo:issuetests is:issue sort:created-desc label:^bug label:question',
     'repo:issuetests is:issue sort:created-desc label:^bug label:question',
     'title:.*surfacing.*',
-    'body:.*Traceback.*'
+    'body:.*Traceback.*',
+    'user:jctanner',
+    'number:1',
+    'repo:issuetests number:1',
 ]
 
 qe = QueryExecutor()

@@ -9,16 +9,22 @@ class QueryParser(object):
             'collections': ['issues', 'pullrequests'],
             'labels': [],
             'matches': [],
-            'fields': []
+            'fields': [],
+            'text': [],
+            'numbers': []
         }
 
         qparts = query.split()
 
         for qpart in qparts:
-            #print(qpart)
+
+            # full text search strings
+            if ':' not in qpart:
+                querydict['text'].append(qpart)
+                continue
+
             key = qpart.split(':', 1)[0]
             value = qpart.split(':', 1)[-1]
-            #print(qpart,value)
 
             if qpart.startswith('is:'):
                 if value in ['open', 'closed', 'merged']:
@@ -58,6 +64,10 @@ class QueryParser(object):
                     querydict['labels'].append(('+', value))
                 else:
                     querydict['labels'].append(('-', value))
+
+            elif key == 'number':
+                querydict['numbers'].append(int(value))
+
             else:
                 # catchall
                 querydict['fields'].append((key, value))

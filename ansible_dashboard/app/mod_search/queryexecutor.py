@@ -3,6 +3,7 @@
 import logging
 import re
 from operator import itemgetter
+from pprint import pprint
 from pymongo import MongoClient
 from app.mod_search.queryparser import QueryParser
 
@@ -14,7 +15,6 @@ class QueryExecutor(object):
 
     def __init__(self):
         self.qp = QueryParser()
-
 
     @staticmethod
     def merge_issue_pullrequest(issue, pullrequest):
@@ -63,12 +63,20 @@ class QueryExecutor(object):
                 if url not in issuemap:
                     issue = db.issues.find_one({'url': url})
                     if issue:
-                        #import epdb; epdb.st()
                         issuemap[url] = issue
 
                 issuemap[url] = QueryExecutor.merge_issue_pullrequest(issuemap[url], px)
 
         client.close()
+
+        # filter specific numbers
+        if querydict['numbers']:
+            topop = []
+            for k,v in issuemap.items():
+                if v['number'] not in querydict['numbers']:
+                    topop.append(k)
+            for x in topop:
+                issuemap.pop(x, None)
 
         # filter out non-matching labels
         if querydict['labels']:
@@ -105,9 +113,17 @@ class QueryExecutor(object):
                         topop.append(k)
                         continue
 
+                    # some fields are dicts such as "user"
+                    val = v[key]
+                    if isinstance(val, dict):
+                        if 'login' in val:
+                            val = val['login']
+                        elif 'name' in val:
+                            val = va['name']
+
                     # safely match
                     try:
-                        if not exp.match(v[key]):
+                        if not exp.match(val):
                             topop.append(k)
                     except Exception as e:
                         logging.error(e)
@@ -130,4 +146,6 @@ class QueryExecutor(object):
             except Exception as e:
                 logging.error(e)
 
+        logging.debug('total: {}'.format(len(results)))
+        pprint([x['number'] for x in results])
         return results
