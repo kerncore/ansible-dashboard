@@ -389,6 +389,15 @@ class GHCrawler(object):
 
             collection = getattr(self.db, '{}'.format(datatype))
 
+            # make a range of known numbers for this datatype
+            repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
+            number_pipe = [
+                {'$match': {'url': {'$regex': '^{}/'.format(repository_url)}}},
+                {'$project': {'_id': 0, 'number': 1}}
+            ]
+            cursor = collection.aggregate(number_pipe)
+            m_numbers = sorted(set([x['number'] for x in cursor]))
+
             # mongo api data
             astates = self.get_states(datatype, repo_path)
 
@@ -399,7 +408,12 @@ class GHCrawler(object):
             missing = []
             changed = []
             for xnumber in numbers:
+
                 snumber = str(xnumber)
+
+                # fixme - github dataloss?
+                if datatype == 'issues' and xnumber not in m_numbers:
+                    missing.append(snumber)
 
                 # fallback to wherever the graph stored it
                 gstate = gstates.get(snumber, graph_states.get(snumber))
@@ -408,7 +422,7 @@ class GHCrawler(object):
                     if gstate['state'] == 'merged':
                         gstate['state'] = 'closed'
                 else:
-                    logging.debug('skipping {} -- no gstate'.format(number))
+                    logging.debug('skipping {} -- no gstate'.format(xnumber))
                     continue
 
                 astate = astates.get(snumber)
