@@ -3,38 +3,45 @@
 class QueryParser(object):
     def parse_to_pipeline(self, query):
 
-        sortby = ('created_at', 'asc')
-        collections = ['issues', 'pullrequests']
-        matches = []
+        querydict = {
+            'pipeline': [],
+            'sortby': ('created_at', 'asc'),
+            'collections': ['issues', 'pullrequests'],
+            'labels': [],
+            'matches': [],
+            'fields': []
+        }
+
         qparts = query.split()
 
         for qpart in qparts:
             #print(qpart)
+            key = qpart.split(':', 1)[0]
             value = qpart.split(':', 1)[-1]
             #print(qpart,value)
 
             if qpart.startswith('is:'):
                 if value in ['open', 'closed', 'merged']:
                     match = {'state': value}
-                    matches.append(match)
+                    querydict['matches'].append(match)
                     if value == 'merged':
-                        collections = ['pullrequests']
+                        querydict['collections'] = ['pullrequests']
                 elif value in ['issue', 'pullrequest']:
                     if value == 'issue':
                         match = {'url': {'$regex': '.*/issues/.*'}}
-                        collections = ['issues']
+                        querydict['collections'] = ['issues']
                     else:
                         match = {'url': {'$regex': '.*/pulls/.*'}}
                         collections = ['pullrequests']
-                    matches.append(match)
+                    querydict['matches'].append(match)
 
             elif qpart.startswith('org:'):
                 match = {'url': {'$regex': '^https://api.github.com/repos/{}/'.format(value)}}
-                matches.append(match)
+                querydict['matches'].append(match)
 
             elif qpart.startswith('repo:'):
                 match = {'url': {'$regex': '^https://api.github.com/repos/.*/{}/'.format(value)}}
-                matches.append(match)
+                querydict['matches'].append(match)
 
             elif qpart.startswith('sort:'):
                 key = value.split('-', 1)[0]
@@ -44,18 +51,26 @@ class QueryParser(object):
                 direction = value.split('-', 1)[1]
                 if direction != 'asc':
                     direction = 'desc'
-                sortby = (key, direction)
+                querydict['sortby'] = (key, direction)
+
+            elif qpart.startswith('label:') or qpart.startswith('-label:'):
+                if qpart.startswith('label:'):
+                    querydict['labels'].append(('+', value))
+                else:
+                    querydict['labels'].append(('-', value))
             else:
-                pass
+                # catchall
+                querydict['fields'].append((key, value))
 
         pipeline = []
-        for match in matches:
-            pipeline.append(
+        for match in querydict['matches']:
+            querydict['pipeline'].append(
                 {'$match': match}
             )
-        pipeline.append({'$project': {'_id': 0}})
+        querydict['pipeline'].append({'$project': {'_id': 0}})
 
-        return collections, pipeline, sortby
+        #return collections, pipeline, labels, sortby
+        return querydict
 
 
 

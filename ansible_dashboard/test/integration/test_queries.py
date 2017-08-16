@@ -10,7 +10,11 @@ queries = [
     'repo:issuetests is:issue sort:created-asc',
     'repo:issuetests is:issue sort:created-desc',
     'repo:issuetests is:pullrequest sort:created-asc',
-    'repo:issuetests is:pullrequest sort:created-desc'
+    'repo:issuetests is:pullrequest sort:created-desc',
+    'repo:issuetests is:issue sort:created-desc label:^bug label:question',
+    'repo:issuetests is:issue sort:created-desc label:^bug label:question',
+    'title:.*surfacing.*',
+    'body:.*Traceback.*'
 ]
 
 qe = QueryExecutor()

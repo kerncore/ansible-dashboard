@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+import re
 from operator import itemgetter
 from pymongo import MongoClient
 from app.mod_search.queryparser import QueryParser
@@ -32,28 +33,28 @@ class QueryExecutor(object):
 
         issuemap = {}
 
-        # build the pipelines
-        collections,pipeline,sortby = self.qp.parse_to_pipeline(query)
+        # chop up the query into discrete parts
+        querydict = self.qp.parse_to_pipeline(query)
 
         # start with issues
-        if 'issues' in collections:
+        if 'issues' in querydict['collections']:
             collection_name = 'issues'
             logging.debug('collection: {}'.format(collection_name))
-            logging.debug('pipeline: {}'.format(pipeline))
+            logging.debug('pipeline: {}'.format(querydict['pipeline']))
             collection = getattr(db, collection_name)
-            cursor = collection.aggregate(pipeline)
+            cursor = collection.aggregate(querydict['pipeline'])
             issues = list(cursor)
             logging.debug(len(issues))
 
             for ix in issues:
                 issuemap[ix['url']] = ix
 
-        if 'pullrequests' in collections:
+        if 'pullrequests' in querydict['collections']:
             collection_name = 'pullrequests'
             logging.debug('collection: {}'.format(collection_name))
-            logging.debug('pipeline: {}'.format(pipeline))
+            logging.debug('pipeline: {}'.format(querydict['pipeline']))
             collection = getattr(db, collection_name)
-            cursor = collection.aggregate(pipeline)
+            cursor = collection.aggregate(querydict['pipeline'])
             pullrequests = list(cursor)
             logging.debug(len(pullrequests))
 
@@ -61,36 +62,71 @@ class QueryExecutor(object):
                 url = px['issue_url']
                 if url not in issuemap:
                     issue = db.issues.find_one({'url': url})
-                    if not issue:
-                        import epdb; epdb.st()
-                    issuemap[url] = issue
+                    if issue:
+                        #import epdb; epdb.st()
+                        issuemap[url] = issue
 
                 issuemap[url] = QueryExecutor.merge_issue_pullrequest(issuemap[url], px)
-                #import epdb; epdb.st()
-
-        '''
-        for collection_name in collections:
-            logging.debug('collection: {}'.format(collection_name))
-            logging.debug('pipeline: {}'.format(pipeline))
-            collection = getattr(db, collection_name)
-            cursor = collection.aggregate(pipeline)
-            res = list(cursor)
-            logging.debug(len(res))
-            if res:
-                results += res
-        '''
 
         client.close()
+
+        # filter out non-matching labels
+        if querydict['labels']:
+            topop = []
+            for qlabel in querydict['labels']:
+                exp = re.compile(qlabel[1])
+                for k,v in issuemap.items():
+                    matches = [x for x in v['labels'] if exp.match(x['name'])]
+                    if matches and qlabel[0] == '+':
+                        pass
+                    elif matches and qlabel[0] == '-':
+                        topop.append(k)
+                    else:
+                        topop.append(k)
+
+            for x in topop:
+                issuemap.pop(x, None)
+
+        # match on arbitrary fields
+        if querydict['fields']:
+            topop = []
+            for qfield in querydict['fields']:
+                key = qfield[0]
+                exp = re.compile(qfield[1])
+                for k,v in issuemap.items():
+
+                    # cant regex on missing field
+                    if key not in v:
+                        topop.append(k)
+                        continue
+
+                    # cant regex on a nonetype
+                    if v[key] is None:
+                        topop.append(k)
+                        continue
+
+                    # safely match
+                    try:
+                        if not exp.match(v[key]):
+                            topop.append(k)
+                    except Exception as e:
+                        logging.error(e)
+
+            for x in topop:
+                issuemap.pop(x, None)
+
+        # listify the results
         results = issuemap.values()
 
-        if sortby and results:
-            logging.debug('sortby: {}'.format(sortby))
-            results = [x for x in results if x and sortby[0] in x]
+        # sort the results now
+        if querydict['sortby'] and results:
+            logging.debug('sortby: {}'.format(querydict['sortby']))
+            results = [x for x in results if x and querydict['sortby'][0] in x]
             try:
-                if sortby[1] == 'asc':
-                    results = sorted(results, key=itemgetter(sortby[0]), reverse=True)
+                if querydict['sortby'][1] == 'asc':
+                    results = sorted(results, key=itemgetter(querydict['sortby'][0]), reverse=True)
                 else:
-                    results = sorted(results, key=itemgetter(sortby[0]), reverse=False)
+                    results = sorted(results, key=itemgetter(querydict['sortby'][0]), reverse=False)
             except Exception as e:
                 logging.error(e)
 

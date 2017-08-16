@@ -37,7 +37,7 @@ def index():
 
         # run the query
         qe = QueryExecutor()
-        results = QueryExecutor.runquery(query)
+        results = qe.runquery(query)
         logging.debug('{} --> {} results'.format(query, len(results)))
 
     return render_template("search/index.html", form=form, results=results)
