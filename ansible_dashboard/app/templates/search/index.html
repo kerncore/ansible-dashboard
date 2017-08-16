@@ -97,11 +97,30 @@
                  </form>
             </div>
             {% if results %}
-                <ul>
-                {% for res in results %}
-                    <li>{{ res.number }}  {{ res.repo_parts }} {{ res.title }}</li>
-                {% endfor  %}
-                </ul>
+                <table class="table table-hover">
+                    <thead>
+                    </thead>
+                        <tr>
+                        <th>number</th>
+                        <th>title</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for res in results %}
+                        <tr>
+                        <td>{{ res.number }}</td>
+                        <td>
+                            <font size="3">{{ res.title }}</font> <br>
+                            <font size="1"><a href="{{ res.html_url }}">{{ res.html_url  }}</a></font> <br>
+                            {% for label in res.labels %}
+                            <div class="btn btn-primary btn-xs">{{ label.name }}</div>
+                            {% endfor %}
+                        </td>
+                        </tr>
+                     {% endfor  %}
+                    </tbody>
+
+                </table>
             {% endif %}
       </div>
   </main>
