@@ -57,7 +57,15 @@ class GHCrawler(object):
             else:
                 headers['If-Modified-Since'] = db_headers['Date']
 
-        rr = requests.get(_url, headers=headers)
+        success = False
+        while not success:
+            rr = requests.get(_url, headers=headers)
+            if rr.status_code < 400:
+                success = True
+                break
+
+            import epdb; epdb.st()
+
 
         logging.debug('{} {}'.format(_url, rr.status_code))
 
@@ -101,10 +109,11 @@ class GHCrawler(object):
         return (rr, data)
 
     def fetch_issues(self, repo_path, number=None):
-        self.update_summaries(repo_path, number=number)
-        self.update_issues(repo_path, number=number)
-        self.update_comments(repo_path, number=number)
-        self.update_events(repo_path, number=number)
+        self.update_files(repo_path, number=number)
+        #self.update_summaries(repo_path, number=number)
+        #self.update_issues(repo_path, number=number)
+        #self.update_comments(repo_path, number=number)
+        #self.update_events(repo_path, number=number)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
@@ -332,10 +341,6 @@ class GHCrawler(object):
             #comment_count = x['comments']
             astate = astates[number]
 
-            #events_pipeline = [{'$match': {'issue_url': url}}]
-            #cursor = self.db.comments.aggregate(events_pipeline)
-            #res = list(cursor)
-
             if not counts.get(url):
                 rr, events = self._geturl(x['events_url'], conditional=False)
                 if events:
@@ -366,6 +371,101 @@ class GHCrawler(object):
 
         if not missing:
             logging.debug('No event changes for {}'.format(repo_path))
+
+    def update_files(self, repo_path, number=None):
+        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
+        astates = self.get_states('issues', repo_path)
+
+        count_pipeline = [
+            {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
+            {'$project': {'issue_url': 1}},
+            {
+                '$group': {
+                    '_id': '$issue_url',
+                    'count': { '$sum': 1}
+                }
+            }
+        ]
+        if number:
+            match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
+            count_pipeline[0]['$match']= match
+        cursor = self.db.pullrequest_files.aggregate(count_pipeline)
+        res = list(cursor)
+        counts = {}
+        for x in res:
+            counts[x['_id']] = x['count']
+
+        # get a list of known shas
+        sha_pipeline = [
+            {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
+            {'$project': {'id': 1, 'issue_url': 1, 'sha': 1}},
+        ]
+        if number:
+            match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
+            sha_pipeline[0]['$match']= match
+        cursor = self.db.pullrequest_files.aggregate(sha_pipeline)
+        res = list(cursor)
+        known_shas = []
+        for x in res:
+            known_shas.append(x['sha'])
+
+        pipeline = [
+            {'$match': {'issue_url': {'$regex': '^{}/'.format(repository_url)}}},
+            {'$project': {'_id': 0, 'number': 1, 'url': 1, 'issue_url': 1}}
+            #{'$match': {'repository_url': repository_url}},
+            #{'$project': {'number': 1, 'events_url': 1, 'url': 1, 'updated_at': 1}}
+        ]
+        if number:
+            match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
+            pipeline[0]['$match']= match
+        missing = []
+        changed = []
+        removed = []
+
+        cursor = self.db.pullrequests.aggregate(pipeline)
+        res = list(cursor)
+        for pull in res:
+            pnumber = pull['number']
+            purl = pull['url']
+            iurl = pull['issue_url']
+            files_url = purl + '/files'
+
+            rr, data = self._geturl(files_url, conditional=True)
+
+            if data:
+                for fdata in data:
+                    fdata['pullrequest_url'] = purl
+                    fdata['issue_url'] = iurl
+
+                    if fdata['sha'] not in known_shas:
+                        missing.append(fdata)
+                    else:
+                        changed.append(fdata)
+
+            # checkpoint
+            if len(missing) > 50:
+                logging.debug('inserting {} {}'.format(len(missing), 'files'))
+                self.db.pullrequest_files.insert_many(missing)
+                missing = []
+
+            # checkpoint
+            if len(changed) > 50:
+                logging.debug('{} {} changed'.format(len(changed), 'files'))
+                for x in changed:
+                    self.db.pullrequest_files.replace_one({'issue_url': x['issue_url'], 'sha': x['sha']}, x, True)
+                changed = []
+
+        if missing:
+            logging.debug('inserting {} {}'.format(len(missing), 'files'))
+            self.db.pullrequest_files.insert_many(missing)
+
+        if changed:
+            logging.debug('{} {} changed'.format(len(changed), 'files'))
+            for x in changed:
+                self.db.pullrequest_files.replace_one({'issue_url': x['issue_url'], 'sha': x['sha']}, x, True)
+
+        #import epdb; epdb.st()
+
 
     def update_issues(self, repo_path, number=None, datatypes=['issues', 'pullrequests']):
 
@@ -482,6 +582,19 @@ class GHCrawler(object):
                         to_insert.append(data)
                     else:
                         to_update.append(data)
+
+                    # store in batches if possible
+                    if len(to_insert) > 50:
+                        logging.debug('inserting {} {}'.format(len(to_insert), datatype))
+                        collection.insert_many(to_insert)
+                        to_insert = []
+
+                    # store in batches if possible
+                    if len(to_update) > 50:
+                        logging.debug('replacing {} {}'.format(len(to_update), datatype))
+                        for x in to_update:
+                            collection.replace_one({'url': x['url']}, x, True)
+                        to_update = []
 
             # do all the things!
             if to_insert:
