@@ -21,7 +21,8 @@ queries = [
 ]
 
 queries = [
-    'file:.*vmware.*'
+    #'file:.*vmware.*',
+    'is:closed file:.*vmware.* label:^core -label:^feature'
 ]
 
 qe = QueryExecutor()

@@ -83,6 +83,7 @@ class QueryExecutor(object):
                     if key not in fmatch_urls:
                         topop.append(key)
 
+                logging.debug('filematch removes {}'.format(len(topop)))
                 for x in topop:
                     issuemap.pop(x, None)
 
@@ -94,6 +95,8 @@ class QueryExecutor(object):
             for k,v in issuemap.items():
                 if v['number'] not in querydict['numbers']:
                     topop.append(k)
+
+            logging.debug('numbers removes {}'.format(len(topop)))
             for x in topop:
                 issuemap.pop(x, None)
 
@@ -104,13 +107,23 @@ class QueryExecutor(object):
                 exp = re.compile(qlabel[1])
                 for k,v in issuemap.items():
                     matches = [x for x in v['labels'] if exp.match(x['name'])]
+
+                    # FIXME - this is ugly
                     if matches and qlabel[0] == '+':
                         pass
                     elif matches and qlabel[0] == '-':
+                        if 'feature_pull_request' not in [x['name'] for x in v['labels']]:
+                            import epdb; epdb.st()
                         topop.append(k)
-                    else:
+                    elif qlabel[0] == '-' and not v['labels']:
+                        pass
+                    elif qlabel[0] == '+' and not matches:
+                        #if qlabel[0] == '-':
+                        #    if 'feature_pull_request' not in [x['name'] for x in v['labels']]:
+                        #        import epdb; epdb.st()
                         topop.append(k)
 
+            logging.debug('labels removes {}'.format(len(topop)))
             for x in topop:
                 issuemap.pop(x, None)
 
@@ -147,6 +160,7 @@ class QueryExecutor(object):
                     except Exception as e:
                         logging.error(e)
 
+            logging.debug('fields removes {}'.format(len(topop)))
             for x in topop:
                 issuemap.pop(x, None)
 

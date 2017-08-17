@@ -7,6 +7,7 @@ import requests
 import sys
 import time
 
+from operator import itemgetter
 from pymongo import MongoClient
 from app.crawler.ghgraphql import GithubGraphQLClient
 
@@ -67,7 +68,13 @@ class GHCrawler(object):
 
         success = False
         while not success:
-            rr = requests.get(_url, headers=headers)
+            try:
+                rr = requests.get(_url, headers=headers)
+            except requests.exceptions.ConnectionError:
+                logging.warning('sleeping {}s due to connection error'.format(60*2))
+                time.sleep(60*2)
+                continue
+
             if rr.status_code < 400:
                 success = True
                 break
@@ -106,19 +113,25 @@ class GHCrawler(object):
         #    if data.get('message', '').lower() == 'bad credentials':
         #        import epdb; epdb.st()
 
+        fetched = []
         if 'Link' in rr.headers:
             links = GHCrawler.cleanlinks(rr.headers['Link'])
             while 'next' in links:
                 logging.debug(links['next'])
                 if links['next'] == _url:
                     break
-                nrr, ndata = self._geturl(links['next'], conditional=conditional)
-                if ndata:
-                    data += ndata
-                if 'Link' in nrr.headers:
-                    links = GHCrawler.cleanlinks(nrr.headers['Link'])
+                #import epdb; epdb.st()
+                if links['next'] in fetched:
+                    import epdb; epdb.st()
+                    break
                 else:
-                    links = {}
+                    nrr, ndata = self._geturl(links['next'], conditional=conditional)
+                    if ndata:
+                        data += ndata
+                    if 'Link' in nrr.headers:
+                        links = GHCrawler.cleanlinks(nrr.headers['Link'])
+                    else:
+                        links = {}
 
         new_headers = dict(rr.headers)
         new_headers['url'] = _url
@@ -223,7 +236,10 @@ class GHCrawler(object):
         removed = []
 
         cursor = self.db.issues.aggregate(pipeline)
-        for x in list(cursor):
+        issues = list(cursor)
+        issues = sorted(issues, key=itemgetter('number'))
+
+        for x in issues:
             url = x['url']
             number = str(x['number'])
             updated_at = x['updated_at']
@@ -358,7 +374,10 @@ class GHCrawler(object):
         removed = []
 
         cursor = self.db.issues.aggregate(pipeline)
-        for x in list(cursor):
+        issues = list(cursor)
+        issues = sorted(issues, key=itemgetter('number'))
+
+        for x in issues:
             url = x['url']
             number = str(x['number'])
             updated_at = x['updated_at']
@@ -366,6 +385,7 @@ class GHCrawler(object):
             astate = astates[number]
 
             if not counts.get(url):
+                #import epdb; epdb.st()
                 rr, events = self._geturl(x['events_url'], conditional=False)
                 if events:
                     for ide, event in enumerate(events):
@@ -388,6 +408,12 @@ class GHCrawler(object):
                         if event['id'] not in known_ids:
                             event['issue_url'] = url
                             missing.append(event)
+
+            # checkpoint
+            if len(missing) > 50:
+                logging.debug('{} new events for {}'.format(len(missing), repo_path))
+                self.db.events.insert_many(missing)
+                missing = []
 
         if missing:
             logging.debug('{} new events for {}'.format(len(missing), repo_path))
@@ -448,6 +474,8 @@ class GHCrawler(object):
 
         cursor = self.db.pullrequests.aggregate(pipeline)
         res = list(cursor)
+        res = sorted(res, key=itemgetter('number'))
+
         for pull in res:
             pnumber = pull['number']
             purl = pull['url']

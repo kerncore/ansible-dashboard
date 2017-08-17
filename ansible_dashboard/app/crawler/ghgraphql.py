@@ -8,6 +8,7 @@ import jinja2
 import json
 import logging
 import requests
+import time
 from operator import itemgetter
 
 
@@ -193,7 +194,14 @@ class GithubGraphQLClient(object):
             logging.debug(self.baseurl)
             logging.debug(payload)
 
-            rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
+            success = False
+            while not success:
+                try:
+                    rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
+                    success = True
+                except requests.exceptions.ConnectionError:
+                    logging.warning('connection error. sleep 2m')
+                    time.sleep(60*2)
 
             logging.debug(rr.status_code)
             logging.debug(rr.reason)
