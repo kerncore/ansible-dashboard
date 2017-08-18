@@ -84,12 +84,37 @@
   <header class="hg__header"><img src="http://docs.ansible.com/ansible/latest/_static/images/logo_invert.png" width="40%">DASHBOARD</header>
   <main class="hg__main">
       <div class="hg__inner">
+          TITLE<br>
           {{ issue.title }} <br>
+          <hr>
+          USER<br>
           {{ issue.user.login }} <br>
+          <hr>
+          URL<br>
           {{ issue.html_url }} <br>
+          <hr>
+          STATE<br>
+          {{ issue.state }} <br>
+          <hr>
+          <!--
+          BODY<br>
           {{ issue.body }} <br>
+          <hr>
+          -->
+          {% for k,v in issue.template_sections.items() %}
+            {{ k|upper }}<br>
+            {{ v }}<br>
+            <hr>
+          {% endfor %}
+          FILES<br>
+          {% for file in issue.files %}
+            {{ file.filename }}<br>
+          {% endfor %}
+          <hr>
           {% for comment in issue._comments %}
+            COMMENT <br>
             {{ comment['body'] }} <br>
+            <hr>
           {% endfor %}
       </div>
   </main>

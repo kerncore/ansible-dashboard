@@ -42,6 +42,7 @@ class QueryExecutor(object):
             logging.debug('collection: {}'.format(collection_name))
             logging.debug('pipeline: {}'.format(querydict['pipeline']))
             collection = getattr(db, collection_name)
+            logging.debug('aggregating issues')
             cursor = collection.aggregate(querydict['pipeline'])
             issues = list(cursor)
             logging.debug(len(issues))
@@ -54,6 +55,7 @@ class QueryExecutor(object):
             logging.debug('collection: {}'.format(collection_name))
             logging.debug('pipeline: {}'.format(querydict['pipeline']))
             collection = getattr(db, collection_name)
+            logging.debug('aggregating pullrequests')
             cursor = collection.aggregate(querydict['pipeline'])
             pullrequests = list(cursor)
             logging.debug(len(pullrequests))
@@ -61,14 +63,17 @@ class QueryExecutor(object):
             for px in pullrequests:
                 url = px['issue_url']
                 if url not in issuemap:
+                    logging.debug('find the issue')
                     issue = db.issues.find_one({'url': url})
                     if issue:
                         issuemap[url] = issue
 
+                logging.debug('merging issue and PR data')
                 issuemap[url] = QueryExecutor.merge_issue_pullrequest(issuemap[url], px)
 
         # get rid of anything without matching files
         if querydict.get('files'):
+            logging.debug('searching for files')
             for filen in querydict['files']:
                 fpipe = [
                     {'$match': {'filename': {'$regex': filen}}},
@@ -91,6 +96,7 @@ class QueryExecutor(object):
 
         # filter specific numbers
         if querydict['numbers']:
+            logging.debug('filtering on numbers')
             topop = []
             for k,v in issuemap.items():
                 if v['number'] not in querydict['numbers']:
@@ -102,6 +108,7 @@ class QueryExecutor(object):
 
         # filter out non-matching labels
         if querydict['labels']:
+            logging.debug('filtering on labels')
             topop = []
             for qlabel in querydict['labels']:
                 exp = re.compile(qlabel[1])
@@ -129,6 +136,7 @@ class QueryExecutor(object):
 
         # match on arbitrary fields
         if querydict['fields']:
+            logging.debug('filtering on fields')
             topop = []
             for qfield in querydict['fields']:
                 key = qfield[0]
@@ -169,6 +177,7 @@ class QueryExecutor(object):
 
         # sort the results now
         if querydict['sortby'] and results:
+            logging.debug('sorting issues')
             logging.debug('sortby: {}'.format(querydict['sortby']))
             results = [x for x in results if x and querydict['sortby'][0] in x]
             try:
