@@ -79,49 +79,18 @@
 {{super()}}
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
-{% endblock %}
-
-
 {% block content %}
 <div class="hg">
   <header class="hg__header"><img src="http://docs.ansible.com/ansible/latest/_static/images/logo_invert.png" width="40%">DASHBOARD</header>
   <main class="hg__main">
       <div class="hg__inner">
-             <div class="form-group">
-                 <form method="POST" action="">
-                    {{ form.csrf_token }}
-                    {{ form.query(size=100) }}
-                    {{ form.submit }}
-                 </form>
-            </div>
-            {% if results %}
-                <table class="table table-hover">
-                    <thead>
-                    </thead>
-                        <tr>
-                        <th>number</th>
-                        <th>title</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for res in results %}
-                        <tr>
-                            <td><a href="{{ '/issues/' + res.id|string }}">{{ res.number }}</a></td>
-                        <td>
-                            <font size="3">{{ res.title }}</font> <br>
-                            <font size="2"><a href="{{ res.html_url }}">{{ res.html_url  }}</a></font> <br>
-                            {% for label in res.labels %}
-                                <div class="btn btn-primary btn-xs">{{ label.name }}</div>
-                            {% endfor %}
-                        </td>
-                        </tr>
-                     {% endfor  %}
-                    </tbody>
-
-                </table>
-            {% endif %}
+          {{ issue.title }} <br>
+          {{ issue.user.login }} <br>
+          {{ issue.html_url }} <br>
+          {{ issue.body }} <br>
+          {% for comment in issue._comments %}
+            {{ comment['body'] }} <br>
+          {% endfor %}
       </div>
   </main>
   <aside class="hg__left nav">
