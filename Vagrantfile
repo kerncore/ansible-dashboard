@@ -18,7 +18,7 @@ Vagrant.configure("2") do |config|
     vb.memory = "8096"
   end
 
-  config.vm.provision "shell", inline: "dnf clean all"
+  config.vm.provision "shell", inline: "dnf clean all; dnf -y update"
 
   config.vm.provision "ansible_local" do |ansible|
       ansible.playbook = 'site.yml'
