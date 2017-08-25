@@ -9,9 +9,52 @@ from app.mod_search.queryparser import QueryParser
 
 
 DBNAME = 'github_api'
+INDEX_DBNAME = 'github_indexes'
+INDEX_COLLECTION = 'issues'
 
 
 class QueryExecutor(object):
+
+    def __init__(self):
+        self.qp = QueryParser()
+
+    def runquery(self, query):
+        querydict = self.qp.parse_to_pipeline(query)
+        pprint(querydict)
+
+        client = MongoClient()
+        db = getattr(client, INDEX_DBNAME)
+        collection = getattr(db, INDEX_COLLECTION)
+
+        issuemap = {}
+        cursor = collection.aggregate(querydict['pipeline'])
+        issues = list(cursor)
+        client.close()
+
+        print(len(issues))
+        for i in issues:
+            issuemap[i['url']] = i
+
+        # listify the results
+        results = issuemap.values()
+
+        # sort the results now
+        if querydict['sortby'] and results:
+            logging.debug('sorting issues')
+            logging.debug('sortby: {}'.format(querydict['sortby']))
+            results = [x for x in results if x and querydict['sortby'][0] in x]
+            try:
+                if querydict['sortby'][1] == 'asc':
+                    results = sorted(results, key=itemgetter(querydict['sortby'][0]), reverse=True)
+                else:
+                    results = sorted(results, key=itemgetter(querydict['sortby'][0]), reverse=False)
+            except Exception as e:
+                logging.error(e)
+
+        return results
+
+
+class QueryExecutorOLD(object):
 
     def __init__(self):
         self.qp = QueryParser()
@@ -191,3 +234,21 @@ class QueryExecutor(object):
         logging.debug('total: {}'.format(len(results)))
         #pprint([x['number'] for x in results])
         return results
+
+
+
+if __name__ == "__main__":
+    queries = [
+        'repo:ansible is:issue is:open',
+        'org:jctanner is:issue is:open',
+        'org:jctanner is:pullrequest is:closed',
+        'org:jctanner is:pullrequest is:merged'
+    ]
+
+    qe = QueryExecutor()
+
+    for query in queries:
+        pprint(query)
+        res = qe.runquery(query)
+        print(len(res))
+        #import epdb; epdb.st()
