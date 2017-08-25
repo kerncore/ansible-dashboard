@@ -2,80 +2,7 @@
 {% block title %}This is an example page{% endblock %}
 
 {% block styles %}
-<!-- http://www.color-hex.com/color/4682b4 -->
-<style>
-
-
-.hg__header { grid-area: header; }
-.hg__footer { grid-area: footer; }
-.hg__main { grid-area: main; }
-.hg__left { grid-area: navigation; }
-
-
-.hg {
-    display: grid;
-    grid-template-areas: "header main main"
-                         "navigation main main"
-                         "footer main main";
-    grid-template-columns: 150px 1fr 150px;
-    grid-template-rows: 100px
-                        1fr
-                        30px;
-    min-height: 100vh;
-    background: #e0eeee;
-}
-
-
-
-.hg__header {
-    padding: 10px;
-    text-align: center;
-    background: #36648b;
-    color: white;
-    font-weight: bold;
-}
-
-.hg__footer {
-    text-align: center;
-    background: #36648b;
-    color: white;
-}
-
-.hg__left {
-    padding: 10px;
-    background: #3f75a2;
-}
-
-.hg__main {
-    min-width: 800px;
-    padding: 10px;
-    background: #dae6f0;
-}
-
-.hg__inner {
-    padding: 10px;
-    height: 100%;
-    background: #ffffff;
-}
-
-.nav__clicked {
-    background: #4682b4;
-    padding: 5px;
-    color: white;
-    text-align: center;
-    text-decoration: none;
-}
-
-.nav {
-    padding: 5px;
-    color: white;
-    text-align: center;
-    text-decoration: none;
-    font-weight: bold;
-}
-
-
-</style>
+{% include 'style.html' %}
 {{super()}}
 {% endblock %}
 
@@ -146,10 +73,6 @@
 
   </main>
 {% include 'navbar.html' %}
-  <footer class="hg__footer">
-      {% if current_user.is_authenticated %}
-        <a href="auth/signout" class="btn btn-primary btn-block" role="button" aria-pressed="true">log out</a>
-      {% endif %}
-  </footer>
+{% include 'footer.html' %}
 </div>
 {% endblock %}
