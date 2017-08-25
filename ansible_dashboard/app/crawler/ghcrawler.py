@@ -6,6 +6,7 @@ import random
 import requests
 import sys
 import time
+import timeout_decorator
 
 from operator import itemgetter
 from pymongo import MongoClient
@@ -14,10 +15,12 @@ from app.crawler.indexers import GithubIssueIndex
 
 from pprint import pprint
 
+'''
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
 ch = logging.StreamHandler(sys.stdout)
 root.addHandler(ch)
+'''
 
 
 class GHCrawler(object):
@@ -41,6 +44,10 @@ class GHCrawler(object):
             rel = parts[1].split('"')[1]
             linkmap[rel] = parts[0]
         return linkmap
+
+    @timeout_decorator.timeout(5)
+    def call_requests(self, url, headers):
+        return requests.get(url, headers=headers)
 
     def _geturl(self, url, since=None, conditional=True):
 
@@ -70,9 +77,14 @@ class GHCrawler(object):
         success = False
         while not success:
             try:
-                rr = requests.get(_url, headers=headers)
+                #rr = requests.get(_url, headers=headers)
+                rr = self.call_requests(_url, headers)
             except requests.exceptions.ConnectionError:
                 logging.warning('sleeping {}s due to connection error'.format(60*2))
+                time.sleep(60*2)
+                continue
+            except timeout_decorator.timeout_decorator.TimeoutError:
+                logging.warning('sleeping {}s due to timeout'.format(60*2))
                 time.sleep(60*2)
                 continue
 
@@ -146,13 +158,13 @@ class GHCrawler(object):
         #import epdb; epdb.st()
         return (rr, data)
 
-    def fetch_issues(self, repo_path, number=None):
+    def fetch_issues(self, repo_path, number=None, force=False):
         self.update_summaries(repo_path, number=number)
         self.update_issues(repo_path, number=number)
         self.update_comments(repo_path, number=number)
         self.update_events(repo_path, number=number)
         self.update_files(repo_path, number=number)
-        self.update_indexes(repo_path, number=number)
+        self.update_indexes(repo_path, number=number, force=force)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
@@ -724,30 +736,47 @@ class GHCrawler(object):
             if not missing and not changed:
                 logging.info('{} summary collection in sync for {}'.format(stype, repo_path))
 
-    def update_indexes(self, repo_path, number=None):
+    def update_indexes(self, repo_path, number=None, force=False):
         repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
-        for k,v in astates.items():
+
+        if number:
+            keys = [str(number)]
+        else:
+            keys = astates.keys()
+
+        for k in keys:
+            v = astates.get(k)
+            if not v:
+                continue
+            logging.debug('build index for {}'.format(v['number']))
             print(k)
             print(v)
-            ix = GithubIssueIndex(repo_path, v['number'])
+            ix = GithubIssueIndex(repo_path, v['number'], force=force)
             #import epdb; epdb.st()
-
-
 
     def close(self):
         self.client.close()
 
 
 if __name__ == "__main__":
+
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler(sys.stdout)
+    root.addHandler(ch)
+
+
     tokens = os.environ.get('GITHUB_TOKEN')
     tokens = [tokens]
     ghcrawler = GHCrawler(tokens)
 
-    #ghcrawler.fetch_issues('jctanner/issuetests')
-    #ghcrawler.fetch_issues('vmware/pyvmomi')
+    ghcrawler.fetch_issues('jctanner/issuetests')
+    ghcrawler.fetch_issues('vmware/pyvmomi')
+    #ghcrawler.fetch_issues('ansible/ansible-container')
 
-    for i in range(1, 40):
-        ghcrawler.fetch_issues('jctanner/issuetests', number=i)
+    #for i in range(1, 43):
+    #    ghcrawler.fetch_issues('jctanner/issuetests', number=i)
 
     #ghcrawler.gql.get_issue_summary('jctanner', 'issuetests', 19)

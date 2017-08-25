@@ -22,9 +22,10 @@ class GithubIssueIndex(object):
     API_DBNAME = 'github_api'
     INDEX_DBNAME = 'github_indexes'
 
-    def __init__(self, repo, number):
+    def __init__(self, repo, number, force=False):
         self.repo = repo
         self.number = number
+        self.force = force
         self.repository_url = 'https://api.github.com/repos/{}'.format(self.repo)
 
         self._data = {}
@@ -63,20 +64,6 @@ class GithubIssueIndex(object):
             return False
 
     @property
-    def files(self):
-        files = []
-        if not self.is_pullrequest:
-            return files
-        pipeline = [
-            {'$match': {'issue_url': self.url}}
-        ]
-        logging.debug('find files for {}'.format(self.url))
-        cursor = self.api_db.pullrequest_files.aggregate(pipeline)
-        files = list(cursor)
-        logging.debug('{} files for {}'.format(len(files), self.url))
-        return files
-
-    @property
     def state(self):
         return self._data.get('state')
 
@@ -89,21 +76,32 @@ class GithubIssueIndex(object):
             sections = {}
         return sections
 
-
-    def build(self):
+    def build(self, force=False):
 
         # what do we currently have?
         self._old_data = self._get_current_data()
 
         # make a new dataset
-        issue = self._get_issue()
-        pullrequest = self._get_pullrequest()
-        self._data = merge_issue_pullrequest(issue, pullrequest)
+        self._data = merge_issue_pullrequest(self.issue, self.pullrequest)
+        if not self.force:
+            if not self.is_pullrequest:
+                if self._data.get('updated_at') == self._old_data.get('updated_at'):
+                    return
+            elif self._data.get('pull_updated_at') == self._old_data.get('pull_updated_at'):
+                return
 
         # synthetic
         self._data['template_data'] = self.template_data
+        self._data['_comments'] = self.comments
+        self._data['_comments_users'] = self.comments_users
+        self._data['events'] = self.events
         self._data['files'] = self.files
-        import epdb; epdb.st()
+
+        if self.changed:
+            logging.debug('{} changed, updating index db'.format(self._data['url']))
+            self.index_collection.replace_one(
+                {'url': self._data['url']}, self._data, True
+            )
 
     def _get_current_data(self):
         pipeline = [
@@ -123,7 +121,8 @@ class GithubIssueIndex(object):
         else:
             return {}
 
-    def _get_issue(self):
+    @property
+    def issue(self):
         pipeline = [
             {
                 '$match': {
@@ -141,7 +140,8 @@ class GithubIssueIndex(object):
         else:
             return {}
 
-    def _get_pullrequest(self):
+    @property
+    def pullrequest(self):
         pipeline = [
             {
                 '$match': {
@@ -158,3 +158,61 @@ class GithubIssueIndex(object):
             return issues[0]
         else:
             return {}
+
+    @property
+    def files(self):
+        files = []
+        if not self.is_pullrequest:
+            return files
+        pipeline = [
+            {'$match': {'issue_url': self.url}}
+        ]
+        logging.debug('find files for {}'.format(self.url))
+        cursor = self.api_db.pullrequest_files.aggregate(pipeline)
+        files = list(cursor)
+        logging.debug('{} files for {}'.format(len(files), self.url))
+        return files
+
+    @property
+    def comments_users(self):
+        if not self._data['_comments']:
+            return []
+        usernames = []
+        for comment in self._data['_comments']:
+            usernames.append(comment['user']['login'])
+        return usernames
+
+    @property
+    def comments(self):
+        if self._data.get('comments') == 0:
+            return []
+
+        pipeline = [
+            {
+                '$match': {
+                    'issue_url': {
+                        '$regex': '^{}/.*/{}'.format(self.repository_url, self.number)
+                    }
+                }
+            },
+            {'$project': {'_id': 0}}
+        ]
+        cursor = self.api_db.comments.aggregate(pipeline)
+        comments = list(cursor)
+        return comments
+
+    @property
+    def events(self):
+        pipeline = [
+            {
+                '$match': {
+                    'issue_url': {
+                        '$regex': '^{}/.*/{}'.format(self.repository_url, self.number)
+                    }
+                }
+            },
+            {'$project': {'_id': 0}}
+        ]
+        cursor = self.api_db.events.aggregate(pipeline)
+        events = list(cursor)
+        return events

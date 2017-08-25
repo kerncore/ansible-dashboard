@@ -17,6 +17,10 @@ def extract_template_sections(body, header='#####'):
     ''' Get the section names from a .github/*.md file in a repo'''
 
     sections = {}
+
+    if not body:
+        return sections
+
     lines = body.split('\n')
     current_section = None
     for line in lines:
