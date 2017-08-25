@@ -16,6 +16,7 @@ def merge_issue_pullrequest(issue, pullrequest):
             rdata[k] = v
         else:
             rdata['pull_{}'.format(k)] = v
+    #import epdb; epdb.st()
     return rdata
 
 class GithubIssueIndex(object):
@@ -152,7 +153,7 @@ class GithubIssueIndex(object):
             },
             {'$project': {'_id': 0}}
         ]
-        cursor = self.api_db.issues.aggregate(pipeline)
+        cursor = self.api_db.pullrequests.aggregate(pipeline)
         issues = list(cursor)
         if issues:
             return issues[0]

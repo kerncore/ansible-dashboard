@@ -34,7 +34,6 @@ class QueryParser(object):
                 elif value in ['merged']:
                     match = {'merged': True}
                     querydict['matches'].append(match)
-                    #import epdb; epdb.st()
                 elif value in ['issue', 'pullrequest']:
                     if value == 'issue':
                         match = {'url': {'$regex': '.*/issues/.*'}}

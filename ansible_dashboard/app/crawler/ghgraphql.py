@@ -9,6 +9,7 @@ import json
 import logging
 import requests
 import time
+import timeout_decorator
 from operator import itemgetter
 
 
@@ -71,6 +72,10 @@ class GithubGraphQLClient(object):
             'Authorization': 'Bearer %s' % self.token,
         }
         self.environment = jinja2.Environment()
+
+    @timeout_decorator.timeout(5)
+    def call_requests(self, url, headers, data):
+        return requests.post(url, headers=headers, data=data)
 
     '''
     def get_issue_summaries(self, repo_url, baseurl=None, cachefile=None):
@@ -197,11 +202,16 @@ class GithubGraphQLClient(object):
             success = False
             while not success:
                 try:
-                    rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
+                    #rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
+                    rr = self.call_requests(self.baseurl, self.headers, json.dumps(payload))
                     success = True
                 except requests.exceptions.ConnectionError:
                     logging.warning('connection error. sleep 2m')
                     time.sleep(60*2)
+                except timeout_decorator.timeout_decorator.TimeoutError:
+                    logging.warning('sleeping {}s due to timeout'.format(60 * 2))
+                    time.sleep(60 * 2)
+                    continue
 
             logging.debug(rr.status_code)
             logging.debug(rr.reason)
