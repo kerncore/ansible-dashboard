@@ -3,8 +3,8 @@ import sys
 import traceback
 from pymongo import MongoClient
 
-from app.mod_issues.extractors import extract_template_sections
-from app.mod_issues.extractors import extract_template_data
+from app.crawler.extractors import extract_template_sections
+from app.crawler.extractors import extract_template_data
 
 DBNAME = 'github_api'
 

@@ -10,6 +10,7 @@ import time
 from operator import itemgetter
 from pymongo import MongoClient
 from app.crawler.ghgraphql import GithubGraphQLClient
+from app.crawler.indexers import GithubIssueIndex
 
 from pprint import pprint
 
@@ -151,6 +152,7 @@ class GHCrawler(object):
         self.update_comments(repo_path, number=number)
         self.update_events(repo_path, number=number)
         self.update_files(repo_path, number=number)
+        self.update_indexes(repo_path, number=number)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
@@ -158,13 +160,13 @@ class GHCrawler(object):
         if datatype == 'issues':
             pipeline = [
                 {'$match': {'repository_url': repository_url}},
-                {'$project': {'number': 1, 'state': 1, 'updated_at': 1}}
+                {'$project': {'_id':0, 'number': 1, 'state': 1, 'updated_at': 1}}
             ]
         else:
             # 'url': 'https://api.github.com/repos/jctanner/issuetests/pulls/41',
             pipeline = [
                 {'$match': {'url': {'$regex': '^{}/'.format(repository_url)}}},
-                {'$project': {'number': 1, 'state': 1, 'updated_at': 1}}
+                {'$project': {'_id':0, 'number': 1, 'state': 1, 'updated_at': 1}}
             ]
 
         collection = getattr(self.db, '{}'.format(datatype))
@@ -184,7 +186,7 @@ class GHCrawler(object):
         return states
 
     def update_comments(self, repo_path, number=None):
-        repository_url = 'https://mod_api.github.com/repos/{}'.format(repo_path)
+        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
         astates = self.get_states('issues', repo_path)
 
         count_pipeline = [
@@ -721,6 +723,17 @@ class GHCrawler(object):
 
             if not missing and not changed:
                 logging.info('{} summary collection in sync for {}'.format(stype, repo_path))
+
+    def update_indexes(self, repo_path, number=None):
+        repository_url = 'https://api.github.com/repos/{}'.format(repo_path)
+        astates = self.get_states('issues', repo_path)
+        for k,v in astates.items():
+            print(k)
+            print(v)
+            ix = GithubIssueIndex(repo_path, v['number'])
+            #import epdb; epdb.st()
+
+
 
     def close(self):
         self.client.close()
