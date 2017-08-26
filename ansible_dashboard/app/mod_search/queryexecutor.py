@@ -43,17 +43,21 @@ class QueryExecutor(object):
                 topop = []
                 for k,v in issuemap.items():
 
-                    #if v.get('files'):
+                    if not v.get('files'):
+                        topop.append(k)
+                        continue
+
+                    found = False
+                    for filen in v['files']:
+                        if matcher.match(filen):
+                            found = True
+                            break
+
+                    #if [x for x in v['files'] if 'cloud' in x]:
                     #    import epdb; epdb.st()
 
-                    #if not v.get('files'):
-                    #    topop.append(k)
-                    #    continue
-
-                    if 'pull' in v['html_url']:
-                        import epdb; epdb.st()
-
-                    topop.append(k)
+                    if not found:
+                        topop.append(k)
 
                 logging.debug('filematch removes {}'.format(len(topop)))
                 for x in topop:
@@ -277,7 +281,7 @@ if __name__ == "__main__":
         #'org:jctanner is:issue is:open',
         #'org:jctanner is:pullrequest is:closed',
         #'org:jctanner is:pullrequest is:merged',
-        'file:.*vmware.*',
+        'file:.*cloud.*',
     ]
 
     qe = QueryExecutor()
