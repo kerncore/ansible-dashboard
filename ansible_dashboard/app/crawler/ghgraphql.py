@@ -271,9 +271,26 @@ class GithubGraphQLClient(object):
         logging.debug(self.baseurl)
         logging.debug(payload)
 
+        ''''
         rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
         logging.debug(rr.status_code)
         logging.debug(rr.reason)
+        data = rr.json()
+        '''
+
+        success = False
+        while not success:
+            try:
+                # rr = requests.post(self.baseurl, headers=self.headers, data=json.dumps(payload))
+                rr = self.call_requests(self.baseurl, self.headers, json.dumps(payload))
+                success = True
+            except requests.exceptions.ConnectionError:
+                logging.warning('connection error. sleep 2m')
+                time.sleep(60 * 2)
+            except timeout_decorator.timeout_decorator.TimeoutError:
+                logging.warning('sleeping {}s due to timeout'.format(60 * 2))
+                time.sleep(60 * 2)
+                continue
 
         data = rr.json()
 

@@ -106,6 +106,11 @@ class GHCrawler(object):
                 if 'X-RateLimit-Reset' in rr.headers:
                     rt = float(rr.headers['X-RateLimit-Reset']) - time.time()
                     rt += 5
+
+                    # cap it at one hour
+                    if rt > (60 * 60):
+                        rt = (60 * 65)
+
                     logging.warning('{}'.format(jdata.get('message')))
                     logging.warning('sleeping {}s due to rate limiting'.format(rt))
                     time.sleep(rt)
@@ -625,7 +630,14 @@ class GHCrawler(object):
             to_insert = []
             to_update = []
             if missing or changed:
-                tofetch = sorted(set(missing + changed))
+
+                tofetch = missing + changed
+                tofetch = [int(x) for x in tofetch]
+                tofetch = sorted(set(tofetch))
+                tofetch = [str(x) for x in tofetch]
+                #tofetch = sorted(set(missing + changed))
+
+
                 for fnumber in tofetch:
                     url = 'https://api.github.com/repos/{}/{}/{}'.format(
                         repo_path,
