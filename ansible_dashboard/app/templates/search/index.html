@@ -27,7 +27,6 @@
                 {{ results|length|string }} total
                 <table class="table table-hover">
                     <thead>
-                    </thead>
                         <tr>
                         <th>number</th>
                         <th>title</th>
@@ -40,9 +39,17 @@
                         <td>
                             <font size="3">{{ res.title }}</font> <br>
                             <font size="2"><a href="{{ res.html_url }}">{{ res.html_url  }}</a></font> <br>
-                            {% for label in res.labels %}
-                                <div class="btn btn-primary btn-xs">{{ label.name }}</div>
-                            {% endfor %}
+                            {% if res.labels %}
+                                {% for label in res.labels %}
+                                    <div class="btn btn-primary btn-xs">{{ label.name }}</div>
+                                {% endfor %}
+                                <br>
+                            {% endif %}
+                            {% if res.files %}
+                                {% for filen in res.files %}
+                                    <font size="1">{{ filen }}</font><br>
+                                {% endfor %}
+                            {% endif %}
                         </td>
                         </tr>
                      {% endfor  %}

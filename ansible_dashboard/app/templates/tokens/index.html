@@ -8,6 +8,7 @@
 
 {% block scripts %}
 {{ super() }}
+
 <script type="text/javascript">
     $(document).ready(function(){
         $.getJSON( "/api/tokens", function( data ) {
@@ -42,7 +43,9 @@
           </div>
       </div>
   </main>
+
 {% include 'navbar.html' %}
 {% include 'footer.html' %}
+
 </div>
 {% endblock %}
