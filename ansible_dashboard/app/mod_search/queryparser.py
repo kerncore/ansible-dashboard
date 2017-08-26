@@ -39,7 +39,7 @@ class QueryParser(object):
                         match = {'url': {'$regex': '.*/issues/.*'}}
                         querydict['collections'] = ['issues']
                     else:
-                        match = {'url': {'$regex': '.*/pulls/.*'}}
+                        match = {'pull_url': {'$regex': '.*/pulls/.*'}}
                     querydict['matches'].append(match)
 
             elif qpart.startswith('org:'):
@@ -179,9 +179,9 @@ if __name__ == "__main__":
     qp = QueryParser()
 
     queries = [
-        'repo:ansible is:issue is:open',
-        'org:jctanner is:issue is:open',
-        'org:jctanner is:pullrequest is:closed',
+        #'repo:ansible is:issue is:open',
+        #'org:jctanner is:issue is:open',
+        #'org:jctanner is:pullrequest is:closed',
         'org:jctanner is:pullrequest is:merged'
     ]
 

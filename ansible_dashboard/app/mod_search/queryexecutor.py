@@ -31,7 +31,7 @@ class QueryExecutor(object):
         issues = list(cursor)
         client.close()
 
-        print(len(issues))
+        logging.debug('{} total results'.format(len(issues)))
         for i in issues:
             issuemap[i['url']] = i
 
@@ -251,4 +251,5 @@ if __name__ == "__main__":
         pprint(query)
         res = qe.runquery(query)
         print(len(res))
+        pprint([x['url'] for x in res])
         #import epdb; epdb.st()
