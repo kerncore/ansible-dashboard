@@ -490,6 +490,8 @@ class GHCrawler(object):
         res = list(cursor)
         res = sorted(res, key=itemgetter('number'))
 
+        #import epdb; epdb.st()
+
         for pull in res:
             pnumber = pull['number']
             purl = pull['url']

@@ -2,6 +2,7 @@
 
 import logging
 import re
+import sys
 from operator import itemgetter
 from pprint import pprint
 from pymongo import MongoClient
@@ -31,9 +32,33 @@ class QueryExecutor(object):
         issues = list(cursor)
         client.close()
 
-        logging.debug('{} total results'.format(len(issues)))
+        logging.debug('{} total pipeline matches'.format(len(issues)))
         for i in issues:
             issuemap[i['url']] = i
+
+        if querydict.get('files'):
+            logging.debug('searching for files')
+            for filen in querydict['files']:
+                matcher = re.compile(filen)
+                topop = []
+                for k,v in issuemap.items():
+
+                    #if v.get('files'):
+                    #    import epdb; epdb.st()
+
+                    #if not v.get('files'):
+                    #    topop.append(k)
+                    #    continue
+
+                    if 'pull' in v['html_url']:
+                        import epdb; epdb.st()
+
+                    topop.append(k)
+
+                logging.debug('filematch removes {}'.format(len(topop)))
+                for x in topop:
+                    issuemap.pop(x, None)
+            #import epdb; epdb.st()
 
         # listify the results
         results = issuemap.values()
@@ -54,6 +79,7 @@ class QueryExecutor(object):
         return results
 
 
+'''
 class QueryExecutorOLD(object):
 
     def __init__(self):
@@ -218,6 +244,8 @@ class QueryExecutorOLD(object):
         # listify the results
         results = issuemap.values()
 
+        import epdb; epdb.st()
+
         # sort the results now
         if querydict['sortby'] and results:
             logging.debug('sorting issues')
@@ -234,15 +262,22 @@ class QueryExecutorOLD(object):
         logging.debug('total: {}'.format(len(results)))
         #pprint([x['number'] for x in results])
         return results
-
+'''
 
 
 if __name__ == "__main__":
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler(sys.stdout)
+    root.addHandler(ch)
+
     queries = [
-        'repo:ansible is:issue is:open',
-        'org:jctanner is:issue is:open',
-        'org:jctanner is:pullrequest is:closed',
-        'org:jctanner is:pullrequest is:merged'
+        #'repo:ansible is:issue is:open',
+        #'org:jctanner is:issue is:open',
+        #'org:jctanner is:pullrequest is:closed',
+        #'org:jctanner is:pullrequest is:merged',
+        'file:.*vmware.*',
     ]
 
     qe = QueryExecutor()

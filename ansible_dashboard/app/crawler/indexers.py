@@ -52,7 +52,7 @@ class GithubIssueIndex(object):
 
     @property
     def is_pullrequest(self):
-        if '/pull/' in self._data['url'] or '/pulls/' in self._data['url']:
+        if '/pull/' in self._data['html_url'] or '/pulls/' in self._data['html_url']:
             return True
         else:
             return False
@@ -76,6 +76,10 @@ class GithubIssueIndex(object):
         except Exception as e:
             sections = {}
         return sections
+
+    @property
+    def url(self):
+        return self._data.get('url')
 
     def build(self, force=False):
 
@@ -172,7 +176,9 @@ class GithubIssueIndex(object):
         cursor = self.api_db.pullrequest_files.aggregate(pipeline)
         files = list(cursor)
         logging.debug('{} files for {}'.format(len(files), self.url))
-        return files
+        #import epdb; epdb.st()
+        filenames = [x['filename'] for x in files]
+        return filenames
 
     @property
     def comments_users(self):
