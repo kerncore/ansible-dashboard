@@ -33,6 +33,8 @@ class GHCrawler(object):
         self.client = MongoClient()
         self.db = getattr(self.client, self.DBNAME)
 
+        self.headermap = {}
+
     @staticmethod
     def cleanlinks(links):
         linkmap = {}
@@ -63,7 +65,11 @@ class GHCrawler(object):
         }
 
         # https://developer.github.com/v3/#conditional-requests
-        db_headers = self.db.headers.find_one({'url': _url}) or {}
+        if _url not in self.headermap:
+            db_headers = self.db.headers.find_one({'url': _url}) or {}
+        else:
+            db_headers = self.headermap.get(_url, {})
+
         if db_headers and conditional:
             if db_headers.get('ETag'):
                 headers['If-None-Match'] = db_headers['ETag']
@@ -154,16 +160,36 @@ class GHCrawler(object):
         new_headers = dict(rr.headers)
         new_headers['url'] = _url
         new_headers['Authorizaton'] = headers['Authorization']
-        res = self.db.headers.replace_one(
-            {'url': _url},
-            new_headers,
-            True
-        )
+
+        # store only if changed
+        if new_headers != self.headermap.get(_url):
+            res = self.db.headers.replace_one(
+                {'url': _url},
+                new_headers,
+                True
+            )
+
+        # always update the map
+        self.headermap[_url] = new_headers
+
 
         #import epdb; epdb.st()
         return (rr, data)
 
     def fetch_issues(self, repo_path, number=None, force=False):
+
+        if not number:
+            # precache the headers to reduce calls to the database
+            self.headermap = {}
+            headerpipe = [
+                {'$project': {'_id': 0}}
+            ]
+            cursor = self.db.headers.aggregate(headerpipe)
+            headers = list(cursor)
+            for header in headers:
+                self.headermap[header['url']] = header
+            #import epdb; epdb.st()
+
         self.update_summaries(repo_path, number=number)
         self.update_issues(repo_path, number=number)
         self.update_comments(repo_path, number=number)
