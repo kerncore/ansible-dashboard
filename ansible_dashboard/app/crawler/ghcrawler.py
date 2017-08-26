@@ -774,9 +774,10 @@ if __name__ == "__main__":
     tokens = [tokens]
     ghcrawler = GHCrawler(tokens)
 
-    ghcrawler.fetch_issues('jctanner/issuetests', force=True)
-    ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
-    ghcrawler.fetch_issues('ansible/ansible-container', force=True)
+    #ghcrawler.fetch_issues('jctanner/issuetests', force=True)
+    #ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
+    #ghcrawler.fetch_issues('ansible/ansible-container', force=True)
+    ghcrawler.fetch_issues('ansible/ansibullbot', force=True)
 
     #for i in range(1, 43):
     #    ghcrawler.fetch_issues('jctanner/issuetests', number=i)

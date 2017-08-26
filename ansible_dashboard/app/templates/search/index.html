@@ -41,7 +41,7 @@
                             <font size="2"><a href="{{ res.html_url }}">{{ res.html_url  }}</a></font> <br>
                             {% if res.labels %}
                                 {% for label in res.labels %}
-                                    <div class="btn btn-primary btn-xs">{{ label.name }}</div>
+                                <div class="btn btn-primary btn-xs"><font size="1">{{ label.name }}</font></div>
                                 {% endfor %}
                                 <br>
                             {% endif %}
