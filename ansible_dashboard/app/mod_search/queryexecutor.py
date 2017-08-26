@@ -251,5 +251,5 @@ if __name__ == "__main__":
         pprint(query)
         res = qe.runquery(query)
         print(len(res))
-        pprint([x['url'] for x in res])
+        pprint([x['html_url'] for x in res])
         #import epdb; epdb.st()

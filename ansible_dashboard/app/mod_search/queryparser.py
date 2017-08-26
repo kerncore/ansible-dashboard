@@ -36,10 +36,10 @@ class QueryParser(object):
                     querydict['matches'].append(match)
                 elif value in ['issue', 'pullrequest']:
                     if value == 'issue':
-                        match = {'url': {'$regex': '.*/issues/.*'}}
+                        match = {'html_url': {'$regex': '.*/issues/.*'}}
                         querydict['collections'] = ['issues']
                     else:
-                        match = {'pull_url': {'$regex': '.*/pulls/.*'}}
+                        match = {'html_url': {'$regex': '.*/pull/.*'}}
                     querydict['matches'].append(match)
 
             elif qpart.startswith('org:'):
