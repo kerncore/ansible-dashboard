@@ -150,6 +150,7 @@ class GHCrawler(object):
                     break
                 else:
                     nrr, ndata = self._geturl(links['next'], conditional=conditional)
+                    fetched.append(links['next'])
                     if ndata:
                         data += ndata
                     if 'Link' in nrr.headers:
@@ -176,7 +177,7 @@ class GHCrawler(object):
         #import epdb; epdb.st()
         return (rr, data)
 
-    def fetch_issues(self, repo_path, number=None, force=False):
+    def fetch_issues(self, repo_path, number=None, force=False, phase=None):
 
         if not number:
             # precache the headers to reduce calls to the database
@@ -188,14 +189,19 @@ class GHCrawler(object):
             headers = list(cursor)
             for header in headers:
                 self.headermap[header['url']] = header
-            #import epdb; epdb.st()
 
-        self.update_summaries(repo_path, number=number)
-        self.update_issues(repo_path, number=number)
-        self.update_comments(repo_path, number=number)
-        self.update_events(repo_path, number=number)
-        self.update_files(repo_path, number=number)
-        self.update_indexes(repo_path, number=number, force=force)
+        if not phase or phase == 'summaries':
+            self.update_summaries(repo_path, number=number)
+        if not phase or phase == 'issues':
+            self.update_issues(repo_path, number=number)
+        if not phase or phase == 'comments':
+            self.update_comments(repo_path, number=number)
+        if not phase or phase == 'events':
+            self.update_events(repo_path, number=number)
+        if not phase or phase == 'files':
+            self.update_files(repo_path, number=number)
+        if not phase or phase == 'indexes':
+            self.update_indexes(repo_path, number=number, force=force)
 
     def get_states(self, datatype, repo_path):
         # what state is it in mongo?
@@ -815,7 +821,8 @@ if __name__ == "__main__":
     #ghcrawler.fetch_issues('jctanner/issuetests', force=True)
     #ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
     #ghcrawler.fetch_issues('ansible/ansible-container', force=True)
-    ghcrawler.fetch_issues('ansible/ansibullbot', force=True)
+    #ghcrawler.fetch_issues('ansible/ansibullbot', force=True)
+    ghcrawler.fetch_issues('ansible/ansible-modules-extras', force=True, phase='indexes', number=2042)
 
     #for i in range(1, 43):
     #    ghcrawler.fetch_issues('jctanner/issuetests', number=i)

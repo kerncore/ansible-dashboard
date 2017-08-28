@@ -71,6 +71,16 @@ class GithubIssueIndex(object):
     @property
     def template_data(self):
         section_names = extract_template_sections(self.body)
+
+        # mongo doesn't like keys with periods
+        topop =[]
+        for key in section_names.keys():
+            if '.' in key:
+                topop.append(key)
+        if topop:
+            for x in topop:
+                section_names.pop(x, None)
+
         try:
             sections = extract_template_data(self.body, issue_number=self.number, SECTIONS=section_names)
         except Exception as e:
