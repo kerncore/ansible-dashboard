@@ -51,7 +51,7 @@ class GHCrawler(object):
     def call_requests(self, url, headers):
         return requests.get(url, headers=headers)
 
-    def _geturl(self, url, since=None, conditional=True):
+    def _geturl(self, url, since=None, conditional=True, follow=True):
 
         if since:
             _url = url + '?since=%s' % since
@@ -80,6 +80,7 @@ class GHCrawler(object):
         if db_headers.get('Authorization'):
             headers['Authorization'] = db_headers['Authorization']
 
+        rr = None
         success = False
         while not success:
             try:
@@ -138,7 +139,7 @@ class GHCrawler(object):
         #        import epdb; epdb.st()
 
         fetched = []
-        if 'Link' in rr.headers:
+        if 'Link' in rr.headers and follow:
             links = GHCrawler.cleanlinks(rr.headers['Link'])
             while 'next' in links:
                 logging.debug(links['next'])
@@ -149,7 +150,7 @@ class GHCrawler(object):
                     import epdb; epdb.st()
                     break
                 else:
-                    nrr, ndata = self._geturl(links['next'], conditional=conditional)
+                    nrr, ndata = self._geturl(links['next'], conditional=conditional, follow=False)
                     fetched.append(links['next'])
                     if ndata:
                         data += ndata
@@ -300,12 +301,22 @@ class GHCrawler(object):
             # new comments
             if counts.get(url, 0) < comment_count:
                 logging.debug('{} expecting {} but found {}'.format(number, comment_count, counts.get(url)))
+
+                logging.debug('force fetch comments for {}'.format(x['url']))
                 rr,comments = self._geturl(x['comments_url'], conditional=False)
+
                 #if not comments:
                 #    import epdb; epdb.st()
                 for cx in comments:
                     if cx['id'] not in known_ids:
                         missing.append(cx)
+
+                if len(comments) < counts.get(url, 0):
+                    import epdb; epdb.st()
+
+                #if len(comments) < counts.get(url, 0):
+                #    import epdb; epdb.st()
+                #import epdb; epdb.st()
 
             # deleted comments
             elif counts.get(url, 0) > comment_count:
@@ -319,6 +330,7 @@ class GHCrawler(object):
                 current_database_ids = [comment['id'] for comment in res]
                 rr, comments = self._geturl(x['comments_url'], conditional=False)
                 current_api_ids = [comment['id'] for comment in comments]
+                #import epdb; epdb.st()
 
                 if comment_count == 0:
                     to_delete = current_database_ids
@@ -334,8 +346,9 @@ class GHCrawler(object):
             # changed comments
             elif counts.get(url) and comment_count:
 
-                # FIXME - how do we avoid fetching the mod_api when unnecessary?
-
+                # FIXME - how do we avoid fetching the api when unnecessary?
+                if counts.get(url) == comment_count:
+                    continue
 
                 # get the list of timestamps on current comments
                 this_pipeline = [
@@ -348,7 +361,6 @@ class GHCrawler(object):
                 for comment in res:
                     timestamps[comment['id']] = comment['updated_at']
                 latest = sorted(set(timestamps.values()))[-1]
-                #rr, comments = self._geturl(x['comments_url'], since=latest)
                 rr, comments = self._geturl(x['comments_url'])
 
                 if not comments:
@@ -359,6 +371,23 @@ class GHCrawler(object):
                     this_time = comment['updated_at']
                     if db_time != this_time:
                         changed.append(comment)
+
+            if len(missing) > 50:
+                logging.debug('{} new comments for {}'.format(len(missing), repo_path))
+                self.db.comments.insert_many(missing)
+                missing = []
+
+            if len(changed) > 50:
+                logging.debug('{} comments changed for {}'.format(len(changed), repo_path))
+                for comment in changed:
+                    self.db.comments.replace_one({'issue_url': url, 'id': comment['id']}, comment)
+                changed = []
+
+            if len(removed) > 50:
+                logging.debug('{} comments to remove for {}'.format(len(removed), repo_path))
+                res = self.db.comments.remove({'id': {'$in': removed}})
+                removed = []
+
 
         if missing:
             logging.debug('{} new comments for {}'.format(len(missing), repo_path))
@@ -413,6 +442,7 @@ class GHCrawler(object):
         for x in res:
             known_ids.append(x['id'])
 
+        '''
         pipeline = [
             {'$match': {'repository_url': repository_url}},
             {'$project': {'number': 1, 'events_url': 1, 'url': 1, 'updated_at': 1}}
@@ -420,13 +450,27 @@ class GHCrawler(object):
         if number:
             match = {'issue_url': {'$regex': '^{}/issues/{}$'.format(repository_url, number)}}
             pipeline[0]['$match']= match
-        missing = []
-        changed = []
-        removed = []
-
+        
         cursor = self.db.issues.aggregate(pipeline)
         issues = list(cursor)
         issues = sorted(issues, key=itemgetter('number'))
+        '''
+
+        if not number:
+            pipeline = [
+                {'$match': {'repository_url': repository_url}},
+                {'$project': {'number': 1, 'events_url': 1, 'url': 1, 'updated_at': 1}}
+            ]
+            cursor = self.db.issues.aggregate(pipeline)
+            issues = list(cursor)
+            issues = sorted(issues, key=itemgetter('number'))
+        else:
+            url = '{}/issues/{}'.format(repository_url, number)
+            issues = [self.db.issues.find_one({'url': url})]
+
+        missing = []
+        changed = []
+        removed = []
 
         for x in issues:
             url = x['url']
@@ -822,7 +866,12 @@ if __name__ == "__main__":
     #ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
     #ghcrawler.fetch_issues('ansible/ansible-container', force=True)
     #ghcrawler.fetch_issues('ansible/ansibullbot', force=True)
-    ghcrawler.fetch_issues('ansible/ansible-modules-extras', force=True, phase='indexes', number=2042)
+    #ghcrawler.fetch_issues('ansible/ansible-modules-extras', force=True, phase='indexes', number=2042)
+    #ghcrawler.fetch_issues('ansible/ansible', phase='comments', number=16638)
+    #ghcrawler.fetch_issues('ansible/ansible', phase='comments')
+    #ghcrawler.fetch_issues('ansible/ansible')
+    #ghcrawler.fetch_issues('ansible/ansible', phase='events', number=25181)
+    ghcrawler.fetch_issues('ansible/ansible', phase='events')
 
     #for i in range(1, 43):
     #    ghcrawler.fetch_issues('jctanner/issuetests', number=i)
