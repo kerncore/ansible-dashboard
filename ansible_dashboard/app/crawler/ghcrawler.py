@@ -472,7 +472,8 @@ class GHCrawler(object):
         changed = []
         removed = []
 
-        for x in issues:
+        for idx,x in enumerate(issues):
+
             url = x['url']
             number = str(x['number'])
             updated_at = x['updated_at']
@@ -488,6 +489,8 @@ class GHCrawler(object):
                     missing += events
 
             else:
+
+                '''
                 this_pipeline = [
                     {'$match': {'issue_url': url}},
                     {'$project': {'issue_url': 1, 'id':1, 'created_at':1}}
@@ -496,6 +499,10 @@ class GHCrawler(object):
                 res = list(cursor)
                 timestamps = sorted([event['created_at'] for event in res])
                 latest = timestamps[-1]
+                '''
+
+                continue
+                import epdb; epdb.st()
 
                 rr, events = self._geturl(x['events_url'], conditional=True)
                 if events:
@@ -503,6 +510,8 @@ class GHCrawler(object):
                         if event['id'] not in known_ids:
                             event['issue_url'] = url
                             missing.append(event)
+                #else:
+                #    import epdb; epdb.st()
 
             # checkpoint
             if len(missing) > 50:
@@ -863,7 +872,7 @@ if __name__ == "__main__":
     ghcrawler = GHCrawler(tokens)
 
     #ghcrawler.fetch_issues('jctanner/issuetests', force=True)
-    #ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
+    ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
     #ghcrawler.fetch_issues('ansible/ansible-container', force=True)
     #ghcrawler.fetch_issues('ansible/ansibullbot', force=True)
     #ghcrawler.fetch_issues('ansible/ansible-modules-extras', force=True, phase='indexes', number=2042)
@@ -871,7 +880,7 @@ if __name__ == "__main__":
     #ghcrawler.fetch_issues('ansible/ansible', phase='comments')
     #ghcrawler.fetch_issues('ansible/ansible')
     #ghcrawler.fetch_issues('ansible/ansible', phase='events', number=25181)
-    ghcrawler.fetch_issues('ansible/ansible', phase='events')
+    #ghcrawler.fetch_issues('ansible/ansible', phase='indexes')
 
     #for i in range(1, 43):
     #    ghcrawler.fetch_issues('jctanner/issuetests', number=i)

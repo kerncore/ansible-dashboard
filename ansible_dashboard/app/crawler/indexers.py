@@ -28,6 +28,7 @@ class GithubIssueIndex(object):
         self.number = number
         self.force = force
         self.repository_url = 'https://api.github.com/repos/{}'.format(self.repo)
+        self._comments = []
 
         self._data = {}
         self._old_data = {}
@@ -105,25 +106,33 @@ class GithubIssueIndex(object):
             elif self._data.get('pull_updated_at') == self._old_data.get('pull_updated_at'):
                 return
 
+        # force a fetch of the comments
+        comments = self.comments
+
         # synthetic
         self._data['template_data'] = self.template_data
-        self._data['_comments'] = self.comments
+        self._data['_comments_bodies'] = self.comments_bodies
         self._data['_comments_users'] = self.comments_users
-        self._data['events'] = self.events
+        self._data['_comments_dates'] = self.comments_dates
+        self._data['events_count'] = len(self.events)
         self._data['files'] = self.files
 
         if self.changed:
             logging.debug('{} changed, updating index db'.format(self._data['url']))
-            self.index_collection.replace_one(
-                {'url': self._data['url']}, self._data, True
-            )
+            try:
+                self.index_collection.replace_one(
+                    {'url': self._data['url']}, self._data, True
+                )
+            except Exception as e:
+                logging.error(e)
+                import epdb; epdb.st()
 
     def _get_current_data(self):
         pipeline = [
             {
                 '$match': {
                     'url': {
-                        '$regex': '^{}/.*/{}'.format(self.repository_url, self.number)
+                        '$regex': '^{}/.*/{}$'.format(self.repository_url, self.number)
                     }
                 }
             },
@@ -142,7 +151,7 @@ class GithubIssueIndex(object):
             {
                 '$match': {
                     'url': {
-                        '$regex': '^{}/.*/{}'.format(self.repository_url, self.number)
+                        '$regex': '^{}/.*/{}$'.format(self.repository_url, self.number)
                     }
                 }
             },
@@ -161,7 +170,7 @@ class GithubIssueIndex(object):
             {
                 '$match': {
                     'url': {
-                        '$regex': '^{}/.*/{}'.format(self.repository_url, self.number)
+                        '$regex': '^{}/.*/{}$'.format(self.repository_url, self.number)
                     }
                 }
             },
@@ -192,23 +201,41 @@ class GithubIssueIndex(object):
 
     @property
     def comments_users(self):
-        if not self._data['_comments']:
+        if not self._comments:
             return []
         usernames = []
-        for comment in self._data['_comments']:
+        for comment in self._comments:
             usernames.append(comment['user']['login'])
         return usernames
 
     @property
-    def comments(self):
-        if self._data.get('comments') == 0:
+    def comments_bodies(self):
+        if not self._comments:
             return []
+        bodies = []
+        for comment in self._comments:
+            bodies.append(comment['body'])
+        return bodies
+
+    @property
+    def comments_dates(self):
+        if not self._comments:
+            return []
+        dates = []
+        for comment in self._comments:
+            dates.append(comment['created_at'])
+        return dates
+
+    @property
+    def comments(self):
+        #if self._data.get('comments') == 0:
+        #    return []
 
         pipeline = [
             {
                 '$match': {
                     'issue_url': {
-                        '$regex': '^{}/.*/{}'.format(self.repository_url, self.number)
+                        '$regex': '^{}/.*/{}$'.format(self.repository_url, self.number)
                     }
                 }
             },
@@ -216,6 +243,10 @@ class GithubIssueIndex(object):
         ]
         cursor = self.api_db.comments.aggregate(pipeline)
         comments = list(cursor)
+
+        self._comments = comments
+
+        #import epdb; epdb.st()
         return comments
 
     @property
@@ -224,7 +255,7 @@ class GithubIssueIndex(object):
             {
                 '$match': {
                     'issue_url': {
-                        '$regex': '^{}/.*/{}'.format(self.repository_url, self.number)
+                        '$regex': '^{}/.*/{}$'.format(self.repository_url, self.number)
                     }
                 }
             },
