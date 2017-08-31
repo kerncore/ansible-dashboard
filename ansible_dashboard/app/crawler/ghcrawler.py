@@ -872,7 +872,7 @@ if __name__ == "__main__":
     ghcrawler = GHCrawler(tokens)
 
     #ghcrawler.fetch_issues('jctanner/issuetests', force=True)
-    ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
+    #ghcrawler.fetch_issues('vmware/pyvmomi', force=True)
     #ghcrawler.fetch_issues('ansible/ansible-container', force=True)
     #ghcrawler.fetch_issues('ansible/ansibullbot', force=True)
     #ghcrawler.fetch_issues('ansible/ansible-modules-extras', force=True, phase='indexes', number=2042)
@@ -880,7 +880,8 @@ if __name__ == "__main__":
     #ghcrawler.fetch_issues('ansible/ansible', phase='comments')
     #ghcrawler.fetch_issues('ansible/ansible')
     #ghcrawler.fetch_issues('ansible/ansible', phase='events', number=25181)
-    #ghcrawler.fetch_issues('ansible/ansible', phase='indexes')
+    #ghcrawler.fetch_issues('ansible/ansible', phase='indexes', force=True, number=23689)
+    ghcrawler.fetch_issues('ansible/ansible', phase='indexes', force=True)
 
     #for i in range(1, 43):
     #    ghcrawler.fetch_issues('jctanner/issuetests', number=i)

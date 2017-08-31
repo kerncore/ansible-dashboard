@@ -22,6 +22,8 @@ def merge_issue_pullrequest(issue, pullrequest):
 class GithubIssueIndex(object):
     API_DBNAME = 'github_api'
     INDEX_DBNAME = 'github_indexes'
+    BZDBNAME = 'bugzilla'
+    BZCOLLECTIONNAME = 'bugs'
 
     def __init__(self, repo, number, force=False):
         self.repo = repo
@@ -29,6 +31,7 @@ class GithubIssueIndex(object):
         self.force = force
         self.repository_url = 'https://api.github.com/repos/{}'.format(self.repo)
         self._comments = []
+        self._bugzillas = []
 
         self._data = {}
         self._old_data = {}
@@ -37,6 +40,8 @@ class GithubIssueIndex(object):
         self.api_db = getattr(self.client, self.API_DBNAME)
         self.index_db = getattr(self.client, self.INDEX_DBNAME)
         self.index_collection = getattr(self.index_db, 'issues')
+        self.bzdb = getattr(self.client, self.BZDBNAME)
+        self.bzcol = getattr(self.bzdb, self.BZCOLLECTIONNAME)
 
         self.build()
 
@@ -116,6 +121,8 @@ class GithubIssueIndex(object):
         self._data['_comments_dates'] = self.comments_dates
         self._data['events_count'] = len(self.events)
         self._data['files'] = self.files
+        self._data['bugzillas'] = self.bugzillas
+        self._data['bugzillas_count'] = self.bugzilla_count
 
         if self.changed:
             logging.debug('{} changed, updating index db'.format(self._data['url']))
@@ -144,6 +151,10 @@ class GithubIssueIndex(object):
             return issues[0]
         else:
             return {}
+
+    @property
+    def bugzilla_count(self):
+        return len(self._bugzillas)
 
     @property
     def issue(self):
@@ -264,3 +275,16 @@ class GithubIssueIndex(object):
         cursor = self.api_db.events.aggregate(pipeline)
         events = list(cursor)
         return events
+
+    @property
+    def bugzillas(self):
+        pipeline = [
+            {'$unwind': '$external_bugs'},
+            {'$match': {'external_bugs': self._data['html_url']}}
+        ]
+        cursor = self.bzcol.aggregate(pipeline)
+        res = list(cursor)
+        self._bugzillas = res
+        return res
+
+
