@@ -72,7 +72,7 @@ class QueryParser(object):
             elif key == 'file' or key == 'component':
                 querydict['files'].append(value)
 
-            elif key == 'bzcount':
+            elif key in ['bzcount', 'bugzillas_count']:
 
 
                 thisbz = {}
