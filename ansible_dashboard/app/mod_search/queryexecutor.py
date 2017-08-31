@@ -62,7 +62,6 @@ class QueryExecutor(object):
                 logging.debug('filematch removes {}'.format(len(topop)))
                 for x in topop:
                     issuemap.pop(x, None)
-            #import epdb; epdb.st()
 
         # listify the results
         results = issuemap.values()
@@ -281,7 +280,8 @@ if __name__ == "__main__":
         #'org:jctanner is:issue is:open',
         #'org:jctanner is:pullrequest is:closed',
         #'org:jctanner is:pullrequest is:merged',
-        'file:.*cloud.*',
+        #'file:.*cloud.*',
+        'org:ansible repo:ansible bzcount:>0'
     ]
 
     qe = QueryExecutor()

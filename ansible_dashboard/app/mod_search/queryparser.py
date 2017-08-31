@@ -72,6 +72,34 @@ class QueryParser(object):
             elif key == 'file' or key == 'component':
                 querydict['files'].append(value)
 
+            elif key == 'bzcount':
+
+
+                thisbz = {}
+                poperator = None
+
+                if value.isdigit():
+                    thisbz['$eq'] = value
+
+                elif value.startswith('>='):
+                    value = value.replace('>=', '')
+                    poperator = '$gte'
+
+                elif value.startswith('<='):
+                    value = value.replace('<=', '')
+                    poperator = '$lte'
+
+                elif value.startswith('>'):
+                    value = value.replace('>', '')
+                    poperator = '$gt'
+
+                elif value.startswith('<'):
+                    value = value.replace('<', '')
+                    poperator = '$lt'
+
+                querydict['matches'].append({'bugzillas_count': {poperator: int(value)}})
+                #import epdb; epdb.st()
+
             else:
                 # catchall
                 querydict['fields'].append((key, value))
