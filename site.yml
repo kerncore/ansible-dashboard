@@ -7,6 +7,7 @@
       - mongo
       - nginx
       - rabbitmq
+      - phantomjs
       - dashboard.user
       - dashboard.app
       - supervisor

@@ -1,0 +1,30 @@
+- set_fact:
+    phantom_pkg_name: phantomjs-2.1.1-linux-x86_64
+
+- package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - wget
+    - python3-selenium
+    - fontconfig-devel
+    - fontconfig
+    - python3-beautifulsoup4
+
+- shell: cd /opt ; wget https://bitbucket.org/ariya/phantomjs/downloads/{{ phantom_pkg_name }}.tar.bz2
+  args:
+    creates: /opt/{{ phantom_pkg_name }}.tar.bz2
+
+- shell: cd /opt ; tar xvf {{ phantom_pkg_name }}.tar.bz2
+  args:
+    creates: /opt/{{ phantom_pkg_name }}
+
+- file:
+    src: /opt/{{ phantom_pkg_name }}
+    dest: /opt/phantomjs
+    state: link
+
+- file:
+    src: /opt/phantomjs/bin/phantomjs
+    dest: /usr/bin/phantomjs
+    state: link
