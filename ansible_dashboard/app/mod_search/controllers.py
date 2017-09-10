@@ -11,7 +11,8 @@ from app import db
 
 import logging
 
-from flask_login import login_required
+#from flask_login import login_required
+from app.login_tools import login_required
 from app.mod_search.forms import SearchForm
 
 from app.mod_search.queryexecutor import QueryExecutor

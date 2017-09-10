@@ -9,7 +9,8 @@ from app.mod_repos.forms import NewRepoForm
 from app.mod_repos.forms import RepoControls
 
 
-from flask_login import login_required
+#from flask_login import login_required
+from app.login_tools import login_required
 
 
 # Define the blueprint: 'auth', set its url prefix: app.url/auth

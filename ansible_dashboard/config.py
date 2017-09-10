@@ -27,7 +27,7 @@ DATABASE_CONNECT_OPTIONS = {}
 THREADS_PER_PAGE = 2
 
 # Enable protection agains *Cross-site Request Forgery (CSRF)*
-CSRF_ENABLED     = True
+CSRF_ENABLED = True
 
 # Use a secure, unique and absolutely secret key for
 # signing the data.
@@ -35,3 +35,9 @@ CSRF_SESSION_KEY = "secret"
 
 # Secret key for signing cookies
 SECRET_KEY = "secret"
+
+# LOGIN W/ GITHUB
+DATABASE_URI = 'XXXX'
+DEBUG = True
+GITHUB_CLIENT_ID = 'XXXX'
+GITHUB_CLIENT_SECRET = 'XXXX'

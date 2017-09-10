@@ -5,6 +5,8 @@
 
 - hosts: all
   become: yes
+  pre_tasks:
+      - include_vars: vars/secrets.yml
   roles:
       - selinux
       - ntp

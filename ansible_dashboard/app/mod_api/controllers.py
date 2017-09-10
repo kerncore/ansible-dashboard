@@ -1,6 +1,8 @@
 from flask import Flask, Blueprint
 from flask_restful import Api, Resource, url_for, reqparse
-from flask_login import login_required
+
+#from flask_login import login_required
+from app.login_tools import login_required
 
 from celery.task.control import inspect
 
