@@ -1,17 +1,61 @@
+- name: check for the vagrant user
+  shell: id vagrant
+  ignore_errors: True
+  register: vagrantcheck
+
+
 - package:
     name: "{{ item }}"
     state: latest
   with_items:
+      - git
       - python3
       - python3-pip
       - python3-bcrypt
 
-- pip:
-    executable: /usr/bin/pip3
-    requirements: /vagrant/requirements.txt
+- name: create the src dir
+  file:
+      path: /home/dashboard/src
+      state: directory
+      owner: dashboard
+      group: dashboard
 
-- file:
+- name: link to the vagrant directory
+  file:
+    src: /vagrant/ansible_dashboard
+    dest: /home/dashboard/ansibledashboard
+    state: link
+  when: "vagrantcheck.rc == 0"
+
+- name: checkout the source
+  git:
+      repo: https://github.com/jctanner/ansible-dashboard
+      dest: /home/dashboard/src/ansible-dashboard
+      update: yes
+  when: "vagrantcheck.rc != 0"
+  become: True
+  become_user: dashboard
+
+# VAGRANT DEV
+- name: link to the vagrant directory
+  file:
     src: /vagrant/ansible_dashboard
     dest: /home/dashboard/ansible_dashboard
     state: link
+  when: "vagrantcheck.rc == 0"
+
+# PRODUCTION
+- name: link to the src directory
+  file:
+    src: /home/dashboard/src/ansible-dashboard/ansible_dashboard
+    dest: /home/dashboard/ansible_dashboard
+    state: link
+  when: "vagrantcheck.rc != 0"
+  become: True
+  become_user: dashboard
+
+- pip:
+    executable: /usr/bin/pip3
+    requirements: /home/dashboard/src/ansible-dashboard/requirements.txt
+
 

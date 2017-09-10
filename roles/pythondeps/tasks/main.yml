@@ -1,0 +1,12 @@
+---
+# tasks file for pythondeps
+- name: check for python
+  raw: which python
+  ignore_errors: True
+  register: pycheck
+
+- debug: var=pycheck
+
+- name: install python
+  raw: dnf -y install python
+  when: "pycheck.rc != 0"
