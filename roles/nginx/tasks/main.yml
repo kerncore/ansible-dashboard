@@ -4,6 +4,14 @@
   notify:
       - nginx_restart
 
+- name: add nginx user to dashboard group
+  user:
+    name: nginx
+    groups: dashboard
+    append: True
+  notify:
+      - nginx_restart
+
 - copy:
     src=nginx.conf
     dest=/etc/nginx/nginx.conf
