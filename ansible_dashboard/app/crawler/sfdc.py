@@ -484,6 +484,9 @@ if __name__ == "__main__":
             with open(fn, 'r') as f:
                 cdata = json.loads(f.read())
 
+            if not 'url' in cdata:
+                import epdb; epdb.st()
+
             mdata = {
                 'url': cdata['url'],
                 'product': cdata.get('details', {}).get('product'),

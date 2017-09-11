@@ -44,6 +44,11 @@
                                     <font size="2"><a href="{{ bz.url }}">{{ bz.url }} [{{ bz.product }}] [{{ bz.component }}]</a></font> <br>
                                 {% endfor %}
                             {% endif %}
+                            {% if res.sfdc_cases %}
+                                {% for case in res.sfdc_cases %}
+                                <font size="2"><a href="{{ case }}">{{ case }}</a></font> <br>
+                                {% endfor %}
+                            {% endif %}
                             {% if res.labels %}
                                 {% for label in res.labels %}
                                 <div class="btn btn-primary btn-xs"><font size="1">{{ label.name }}</font></div>
