@@ -2,6 +2,7 @@
     name: "{{ item }}"
     state: latest
   with_items:
+      - mongo-tools
       - mongodb-server
       - mongodb
   notify:
