@@ -1,6 +1,6 @@
 # Import flask dependencies
 from flask import Blueprint, request, render_template, \
-                  flash, g, session, redirect, url_for
+                  flash, redirect
 
 # Import the database object from the main app module
 from app import db
@@ -12,7 +12,8 @@ from app.mod_tokens.forms import NewTokenForm
 from app.mod_tokens.forms import DeleteTokenForm
 
 
-from flask_login import login_required
+#from flask_login import login_required
+from app.login_tools import login_required
 
 
 # Define the blueprint: 'auth', set its url prefix: app.url/auth
@@ -26,7 +27,7 @@ def index():
     form = NewTokenForm()
 
     if request.method == 'POST':
-        if form.validate() == False:
+        if form.validate() is False:
             flash('All fields are required.')
         else:
             thistoken = Token(form.username.data, form.token.data)
@@ -51,5 +52,5 @@ def tokenview(tokenid):
         #return url_for('mod_tokens')
         return redirect('/tokens')
 
-    token = Token.query.filter(Token.id==tokenid).first()
+    token = Token.query.filter(Token.id == tokenid).first()
     return render_template("tokens/tokenview.html", token=token, form=form)

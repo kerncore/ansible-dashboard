@@ -1,14 +1,8 @@
 # Import flask dependencies
-from flask import Blueprint, request, render_template, \
-                  flash, g, session, redirect, url_for
+from flask import Blueprint, render_template
 
-
-# Import password / encryption helper tools
-from werkzeug import check_password_hash, generate_password_hash
-
-import logging
-
-from flask_login import login_required
+#from flask_login import login_required
+from app.login_tools import login_required
 
 from app.mod_api.models import IssueModel
 
