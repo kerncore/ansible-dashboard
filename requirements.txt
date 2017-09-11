@@ -19,3 +19,4 @@ pymongo
 requests
 nose
 timeout-decorator
+urlextract

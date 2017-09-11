@@ -24,6 +24,8 @@ class GithubIssueIndex(object):
     INDEX_DBNAME = 'github_indexes'
     BZDBNAME = 'bugzilla'
     BZCOLLECTIONNAME = 'bugs'
+    SFDCDBNAME = 'sfdc'
+    SFDCCOLLECTIONNAME = 'cases'
 
     def __init__(self, repo, number, force=False):
         self.repo = repo
@@ -123,6 +125,8 @@ class GithubIssueIndex(object):
         self._data['files'] = self.files
         self._data['bugzillas'] = self.bugzillas
         self._data['bugzillas_count'] = self.bugzilla_count
+        self._data['sfdc_cases'] = self.sfdc_cases
+        self._data['sfdc_count'] = len(self._data['sfdc_cases'])
 
         if self.changed:
             logging.debug('{} changed, updating index db'.format(self._data['url']))
@@ -286,5 +290,60 @@ class GithubIssueIndex(object):
         res = list(cursor)
         self._bugzillas = res
         return res
+
+    @property
+    def sfdc_cases(self):
+        SFDCDBNAME = 'bugzilla'
+        SFDCCOLLECTIONNAME = 'bugs'
+        sfdc_db = getattr(self.client, self.SFDCDBNAME)
+        cases_col = getattr(sfdc_db, self.SFDCCOLLECTIONNAME)
+
+        pipeline = [
+            {'$unwind': '$github_issues'},
+            {'$match': {'github_issues': self._data['html_url']}}
+        ]
+        cursor = cases_col.aggregate(pipeline)
+        results = list(cursor)
+
+        cases = []
+        for res in results:
+            if res['url'] not in cases:
+                cases.append(res['url'])
+
+        return cases
+
+
+if __name__ == "__main__":
+    client = MongoClient()
+    db = getattr(client, 'sfdc')
+    collection = getattr(db, 'cases')
+
+    reindex = []
+
+    cursor = collection.find()
+    res = list(cursor)
+
+    for case in res:
+        if not case.get('github_issues'):
+            continue
+        for url in case['github_issues']:
+            if url not in reindex:
+                reindex.append(url)
+
+    for idx,rei in enumerate(reindex):
+        print('{} of {} -- {}'.format(idx, len(reindex), rei))
+
+        repo = '/'.join(rei.split('/')[3:5])
+        if not repo.startswith('ansible') or 'tower' in repo:
+            continue
+        number = rei.split('/')[-1]
+        number = int(number)
+        try:
+            index = GithubIssueIndex(repo, number, force=True)
+        except Exception as e:
+            print(e)
+        #import epdb; epdb.st()
+
+    import epdb; epdb.st()
 
 
