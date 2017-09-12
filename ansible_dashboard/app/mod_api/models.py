@@ -49,6 +49,16 @@ class IssueModel(object):
         client.close()
 
     @property
+    def index_data(self):
+        client = MongoClient()
+        db = getattr(client, 'github_indexes')
+        issues = getattr(db, 'issues')
+        res = issues.find_one({'html_url': self.html_url})
+        client.close()
+        res.pop('_id', None)
+        return res
+
+    @property
     def files(self):
         files = []
         if not self.is_pullrequest:

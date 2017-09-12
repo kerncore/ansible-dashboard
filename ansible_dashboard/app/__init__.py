@@ -109,6 +109,7 @@ def authorized(access_token):
         return redirect(next_url)
 
     user = User.query.filter_by(github_access_token=access_token).first()
+
     if user is None:
         user = User(access_token)
         db_session.add(user)

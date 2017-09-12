@@ -74,32 +74,6 @@ class QueryParser(object):
 
             elif key in ['bzcount', 'bugzillas_count']:
 
-                '''
-                thisbz = {}
-                poperator = None
-
-                if value.isdigit():
-                    thisbz['$eq'] = value
-
-                elif value.startswith('>='):
-                    value = value.replace('>=', '')
-                    poperator = '$gte'
-
-                elif value.startswith('<='):
-                    value = value.replace('<=', '')
-                    poperator = '$lte'
-
-                elif value.startswith('>'):
-                    value = value.replace('>', '')
-                    poperator = '$gt'
-
-                elif value.startswith('<'):
-                    value = value.replace('<', '')
-                    poperator = '$lt'
-
-                querydict['matches'].append({'bugzillas_count': {poperator: int(value)}})
-                '''
-
                 (op, value) = self.parse_operator_from_value(value)
                 querydict['matches'].append({'bugzillas_count': {op: int(value)}})
 
@@ -107,6 +81,14 @@ class QueryParser(object):
 
                 (op, value) = self.parse_operator_from_value(value)
                 querydict['matches'].append({'sfdc_count': {op: int(value)}})
+
+            elif key == 'template_data':
+                # spaces here are annoying
+                parts = value.rsplit(':', 1)
+                parts = [x.replace('_', ' ') for x in parts]
+                thiskey = '.'.join([key] + parts[:-1])
+                match = {thiskey: {'$regex': parts[-1]}}
+                querydict['matches'].append(match)
 
             else:
                 # catchall
