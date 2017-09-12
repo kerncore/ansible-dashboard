@@ -450,21 +450,27 @@ if __name__ == "__main__":
 
             # inside ticket - 2015-12-03 16:07:19Z
             lu = _cdata['details']['last_update_at']
-            lu = datetime.datetime.strptime(lu, '%Y-%m-%d %H:%M:%SZ')
-            lu = utc.localize(lu)
-            lu = lu.astimezone(eastern)
+            try:
+                lu = datetime.datetime.strptime(lu, '%Y-%m-%d %H:%M:%SZ')
+            except Exception as e:
+                print(e)
+                lu = None
 
-            if lu.year < ua.year:
-                logging.info('{} year is behind'.format(number))
-                fetch = True
+            if lu:
+                lu = utc.localize(lu)
+                lu = lu.astimezone(eastern)
 
-            if not fetch and lu.month < ua.month:
-                logging.info('{} month is behind'.format(number))
-                fetch = True
+                if lu.year < ua.year:
+                    logging.info('{} year is behind'.format(number))
+                    fetch = True
 
-            if not fetch and lu.day < ua.day:
-                logging.info('{} day is behind'.format(number))
-                fetch = True
+                if not fetch and lu.month < ua.month:
+                    logging.info('{} month is behind'.format(number))
+                    fetch = True
+
+                if not fetch and lu.day < ua.day:
+                    logging.info('{} day is behind'.format(number))
+                    fetch = True
 
         if fetch or not os.path.isfile(fn):
             try:
@@ -484,17 +490,18 @@ if __name__ == "__main__":
             with open(fn, 'r') as f:
                 cdata = json.loads(f.read())
 
-            if not 'url' in cdata:
-                import epdb; epdb.st()
+            if cdata:
+                #if not 'url' in cdata:
+                #    import epdb; epdb.st()
 
-            mdata = {
-                'url': cdata['url'],
-                'product': cdata.get('details', {}).get('product'),
-                'status': cdata.get('details', {}).get('status'),
-                'severity': cdata.get('details', {}).get('severity'),
-                'github_issues': cdata.get('github_issues', []),
-            }
+                mdata = {
+                    'url': cdata['url'],
+                    'product': cdata.get('details', {}).get('product'),
+                    'status': cdata.get('details', {}).get('status'),
+                    'severity': cdata.get('details', {}).get('severity'),
+                    'github_issues': cdata.get('github_issues', []),
+                }
 
-            # put it into mongo
-            sfdc.collection.replace_one({'rul': mdata['url']}, mdata, True)
-            #import epdb; epdb.st()
+                # put it into mongo
+                sfdc.collection.replace_one({'rul': mdata['url']}, mdata, True)
+                #import epdb; epdb.st()
