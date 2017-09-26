@@ -124,7 +124,8 @@ class SFDCCrawler(object):
         try:
             self.driver.find_element_by_class_name('reportOutput')
         except NoSuchElementException:
-            import epdb; epdb.st()
+            return None
+            #import epdb; epdb.st()
 
         # <div style="display:none;" id="errorTitle">Time limit exceeded</div>
 
@@ -279,6 +280,10 @@ class SFDCCrawler(object):
                         pass
                 comments.append(comment)
 
+            if pagecount >= 10:
+                logging.error('more than 10 pages of comments found')
+                break
+
             # find the link to the next page of comments and click it
             paginator = soup.find('div', {'class': 'backgrid-paginator'})
             lis = paginator.find_all('li')
@@ -354,60 +359,59 @@ if __name__ == "__main__":
     sfdc = SFDCCrawler(url, username, password)
     sfdc.login()
 
-    # get timestamps
-    casemap = {}
-
-    reports = [
-        'https://gss.my.salesforce.com/00OA0000006BMZf',
-        'https://gss.my.salesforce.com/00OA0000006BMBO',
-        'https://gss.my.salesforce.com/00OA0000006BM9c'
-    ]
-
-    for report in reports:
-        _results = sfdc.get_and_parse_report(report)
-        logging.info('{} rows found in report'.format(len(_results[1])))
-
-        number_idx = _results[0].index('Case Number')
-        url_idx = _results[0].index('Case URL')
-        if 'Last Update Date' in _results[0]:
-            timestamp_idx = _results[0].index('Last Update Date')
-        else:
-            timestamp_idx = _results[0].index('Case Date/Time Last Modified')
-
-        for case in _results[1]:
-            url = case[url_idx]
-            if url not in casemap:
-                casemap[url] = {}
-            casemap[url]['number'] = case[number_idx]
-            if not case[number_idx].isdigit():
-                import epdb; epdb.st()
-            casemap[url]['url'] = url
-            casemap[url]['updated_at'] = case[timestamp_idx]
-            casemap[url]['report'] = report
-            casemap[url]['meta'] = {}
-            for idc,col in enumerate(case):
-                colname = _results[0][idc]
-                casemap[url]['meta'][colname] = col
-            #import epdb; epdb.st()
-
-    # get+cache or load the case urls
-    cases_file = '/tmp/cases.json'
-    if not os.path.isfile(cases_file):
-        cases = sfdc.search_cases('ansible')
-        with open(cases_file, 'w') as f:
-            f.write(json.dumps(cases, indent=2))
+    cases_file = '/tmp/casemap.json'
+    if os.path.isfile(cases_file):
+         with open(cases_file, 'r') as f:
+            casemap = json.loads(f.read())
     else:
-        with open(cases_file, 'r') as f:
-            cases = json.loads(f.read())
+        casemap = {}
 
-    for case in cases:
-        url = case[1].split('?')[0]
-        if url not in casemap:
-            casemap[url] = {
-                'number': case[0],
-                'url': url,
-                'updated_at': None
-            }
+        reports = [
+            'https://gss.my.salesforce.com/00OA0000006BMZf',
+            'https://gss.my.salesforce.com/00OA0000006BMBO',
+            'https://gss.my.salesforce.com/00OA0000006BM9c'
+        ]
+
+        for report in reports:
+            _results = sfdc.get_and_parse_report(report)
+            if _results is None:
+                continue
+            logging.info('{} rows found in report'.format(len(_results[1])))
+
+            number_idx = _results[0].index('Case Number')
+            url_idx = _results[0].index('Case URL')
+            if 'Last Update Date' in _results[0]:
+                timestamp_idx = _results[0].index('Last Update Date')
+            else:
+                timestamp_idx = _results[0].index('Case Date/Time Last Modified')
+
+            for case in _results[1]:
+                url = case[url_idx]
+                if url not in casemap:
+                    casemap[url] = {}
+                casemap[url]['number'] = case[number_idx]
+                if not case[number_idx].isdigit():
+                    import epdb; epdb.st()
+                casemap[url]['url'] = url
+                casemap[url]['updated_at'] = case[timestamp_idx]
+                casemap[url]['report'] = report
+                casemap[url]['meta'] = {}
+                for idc,col in enumerate(case):
+                    colname = _results[0][idc]
+                    casemap[url]['meta'][colname] = col
+
+        cases = sfdc.search_cases('ansible')
+        for case in cases:
+            url = case[1].split('?')[0]
+            if url not in casemap:
+                casemap[url] = {
+                    'number': case[0],
+                    'url': url,
+                    'updated_at': None
+                }
+
+        with open(cases_file, 'w') as f:
+            f.write(json.dumps(casemap, indent=2))
 
     items = casemap.items()
     items = sorted(items, key=lambda x: x[1]['number'])

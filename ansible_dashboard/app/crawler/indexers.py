@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 import logging
-import re
-from operator import itemgetter
-from pprint import pprint
+#import re
+#from operator import itemgetter
+#from pprint import pprint
 from pymongo import MongoClient
 
 
@@ -19,6 +21,7 @@ def merge_issue_pullrequest(issue, pullrequest):
     #import epdb; epdb.st()
     return rdata
 
+
 class GithubIssueIndex(object):
     API_DBNAME = 'github_api'
     INDEX_DBNAME = 'github_indexes'
@@ -34,6 +37,7 @@ class GithubIssueIndex(object):
         self.repository_url = 'https://api.github.com/repos/{}'.format(self.repo)
         self._comments = []
         self._bugzillas = []
+        self._timeline = None
 
         self._data = {}
         self._old_data = {}
@@ -81,7 +85,7 @@ class GithubIssueIndex(object):
         section_names = extract_template_sections(self.body)
 
         # mongo doesn't like keys with periods
-        topop =[]
+        topop = []
         for key in section_names.keys():
             if '.' in key:
                 topop.append(key)
@@ -92,6 +96,7 @@ class GithubIssueIndex(object):
         try:
             sections = extract_template_data(self.body, issue_number=self.number, SECTIONS=section_names)
         except Exception as e:
+            logging.error(e)
             sections = {}
         return sections
 
@@ -114,7 +119,7 @@ class GithubIssueIndex(object):
                 return
 
         # force a fetch of the comments
-        comments = self.comments
+        self.comments
 
         # synthetic
         self._data['template_data'] = self.template_data
@@ -122,11 +127,16 @@ class GithubIssueIndex(object):
         self._data['_comments_users'] = self.comments_users
         self._data['_comments_dates'] = self.comments_dates
         self._data['events_count'] = len(self.events)
+        self._data['cross_references'] = self.cross_references
+        self._data['cross_references_count'] = len(self._data['cross_references'])
         self._data['files'] = self.files
+        self._data['migrated_from'] = self.migrated_from
+        self._data['migrated_to'] = self.migrated_to
         self._data['bugzillas'] = self.bugzillas
         self._data['bugzillas_count'] = self.bugzilla_count
         self._data['sfdc_cases'] = self.sfdc_cases
         self._data['sfdc_count'] = len(self._data['sfdc_cases'])
+        self._data['timeline'] = self.timeline[:]
 
         if self.changed:
             logging.debug('{} changed, updating index db'.format(self._data['url']))
@@ -293,8 +303,8 @@ class GithubIssueIndex(object):
 
     @property
     def sfdc_cases(self):
-        SFDCDBNAME = 'bugzilla'
-        SFDCCOLLECTIONNAME = 'bugs'
+        #SFDCDBNAME = 'bugzilla'
+        #SFDCCOLLECTIONNAME = 'bugs'
         sfdc_db = getattr(self.client, self.SFDCDBNAME)
         cases_col = getattr(sfdc_db, self.SFDCCOLLECTIONNAME)
 
@@ -311,6 +321,48 @@ class GithubIssueIndex(object):
                 cases.append(res['url'])
 
         return cases
+
+    @property
+    def migrated_from(self):
+        # Copied from original issue: ansible/ansible-modules-core#52
+        if 'copied from original issue' in self._data['body'].lower():
+            import epdb; epdb.st()
+        return None
+
+    @property
+    def migrated_to(self):
+        # This issue was migrated to ansible/ansible#30235
+        for comment in self.comments:
+            if 'this issue was migrated to' in comment['body'].lower():
+                import epdb; epdb.st()
+        return None
+
+    @property
+    def cross_references(self):
+        #import epdb; epdb.st()
+        timeline = self.timeline
+        filtered = [x for x in timeline if x.get('event') == 'cross-referenced']
+        html_urls = [x.get('source', {}).get('issue', {}).get('html_url') for x in filtered]
+        html_urls = sorted(set(html_urls))
+        return html_urls
+
+    @property
+    def timeline(self):
+        if self._timeline is None:
+            pipeline = [
+                {
+                    '$match': {
+                        'issue_url': {
+                            '$regex': '^{}/.*/{}$'.format(self.repository_url, self.number)
+                        }
+                    }
+                },
+                {'$project': {'_id': 0}}
+            ]
+            cursor = self.api_db.timeline.aggregate(pipeline)
+            self._timeline = list(cursor)
+
+        return self._timeline
 
 
 if __name__ == "__main__":
@@ -345,5 +397,3 @@ if __name__ == "__main__":
         #import epdb; epdb.st()
 
     import epdb; epdb.st()
-
-

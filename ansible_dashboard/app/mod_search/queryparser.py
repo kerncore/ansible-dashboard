@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 class QueryParser(object):
     def parse_to_pipeline(self, query):
 
@@ -82,6 +83,11 @@ class QueryParser(object):
                 (op, value) = self.parse_operator_from_value(value)
                 querydict['matches'].append({'sfdc_count': {op: int(value)}})
 
+            elif key in ['refcount', 'ref_count', 'reference_count', 'cross_references_count']:
+
+                (op, value) = self.parse_operator_from_value(value)
+                querydict['matches'].append({'cross_references_count': {op: int(value)}})
+
             elif key == 'template_data':
                 # spaces here are annoying
                 parts = value.rsplit(':', 1)
@@ -94,7 +100,7 @@ class QueryParser(object):
                 # catchall
                 querydict['fields'].append((key, value))
 
-        pipeline = []
+        #pipeline = []
         for match in querydict['matches']:
             querydict['pipeline'].append(
                 {'$match': match}
