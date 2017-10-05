@@ -9,6 +9,8 @@ import sys
 import time
 import timeout_decorator
 
+from natsort import natsorted
+from natsort import ns
 from operator import itemgetter
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
@@ -53,12 +55,25 @@ class GHCrawler(object):
     def call_requests(self, url, headers):
         return requests.get(url, headers=headers)
 
-    def _geturl(self, url, since=None, conditional=True, follow=True):
+    def _geturl(self, url, parent_url=None, since=None, conditional=True, follow=True):
 
         if since:
             _url = url + '?since=%s' % since
         else:
             _url = url
+
+        # for paginated requests, resume at the last page
+        if conditional and follow:
+            pipeline = [
+                {'$match': {'parent_url': url}},
+                {'$project': {'_id': 0, 'url': 1}}
+            ]
+            cursor = self.db.headers.aggregate(pipeline)
+            res = list(cursor)
+            if res:
+                res = [x['url'] for x in res]
+                res = natsorted(res, key=lambda y: y.lower())
+                url = res[-1]
 
         token = random.choice(self.tokens)
         accepts = [
@@ -163,7 +178,7 @@ class GHCrawler(object):
                     import epdb; epdb.st()
                     break
                 else:
-                    nrr, ndata = self._geturl(links['next'], conditional=conditional, follow=False)
+                    nrr, ndata = self._geturl(links['next'], parent_url=_url, conditional=conditional, follow=False)
                     fetched.append(links['next'])
                     if ndata:
                         data += ndata
@@ -174,6 +189,7 @@ class GHCrawler(object):
 
         new_headers = dict(rr.headers)
         new_headers['url'] = _url
+        new_headers['parent_url'] = parent_url
         new_headers['Authorizaton'] = headers['Authorization']
 
         # store only if changed
@@ -1083,8 +1099,8 @@ if __name__ == "__main__":
     #ghcrawler.fetch_issues('ansible/ansible', phase='indexes', force=True, number=23689)
     #ghcrawler.fetch_issues('ansible/ansible', phase='indexes', force=True)
     #ghcrawler.fetch_issues('ansible/ansible', phase='timeline', number=24292)
-    #ghcrawler.fetch_issues('ansible/ansible', phase='timeline')
-    ghcrawler.fetch_issues('ansible/ansible')
+    ghcrawler.fetch_issues('ansible/ansible', phase='timeline')
+    #ghcrawler.fetch_issues('ansible/ansible')
     #ghcrawler.fetch_issues('ansible/ansible', phase='indexes', force=True)
 
     #for i in range(1, 43):
