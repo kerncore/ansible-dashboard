@@ -15,6 +15,7 @@ flask_restful
 flask_security
 flower
 gunicorn
+natsort
 pymongo
 requests
 nose
